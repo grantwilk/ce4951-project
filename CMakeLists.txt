@@ -5,9 +5,7 @@ cmake_minimum_required(VERSION 3.17)
 
 # directory variables
 set(PROJECT_DIRECTORY ${CMAKE_SOURCE_DIR}/..)
-set(CORE_DIRECTORY    ${PROJECT_DIRECTORY}/core)
-set(TOOLS_DIRECTORY   ${PROJECT_DIRECTORY}/tools)
-set(GCC_DIRECTORY     ${TOOLS_DIRECTORY}/arm-gcc/bin)
+set(SOURCE_DIRECTORY  ${PROJECT_DIRECTORY}/src)
 
 # compiler toolchain
 set(CMAKE_DEF_COMPILER_EXTERNAL_TOOLCHAIN  ${CMAKE_HOME_DIRECTORY}/CMakeToolchain.txt)
