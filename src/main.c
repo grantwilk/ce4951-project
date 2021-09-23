@@ -41,7 +41,7 @@ int main( void )
     ERROR_HANDLE_FATAL( errorCode );
 
     // print hello world message
-    uprintf("Hello, world!");
+    uprintf("Hello, world!\n");
 
     // enter endless loop
     while(1);
