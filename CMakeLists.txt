@@ -3,10 +3,6 @@ set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_VERSION 1)
 cmake_minimum_required(VERSION 3.17)
 
-# directory variables
-set(PROJECT_DIRECTORY ${CMAKE_SOURCE_DIR}/..)
-set(SOURCE_DIRECTORY  ${PROJECT_DIRECTORY}/src)
-
 # compiler toolchain
 set(CMAKE_DEF_COMPILER_EXTERNAL_TOOLCHAIN  ${CMAKE_HOME_DIRECTORY}/CMakeToolchain.txt)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE          STATIC_LIBRARY)
