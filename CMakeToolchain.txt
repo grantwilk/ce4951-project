@@ -1,0 +1,11 @@
+# system name
+set(CMAKE_SYSTEM_NAME STM32)
+
+# compilers and tools
+set(CMAKE_C_COMPILER    ${GCC_DIRECTORY}/arm-none-eabi-gcc.exe)
+set(CMAKE_CXX_COMPILER  ${GCC_DIRECTORY}/arm-none-eabi-g++.exe)
+set(CMAKE_ASM_COMPILER  ${GCC_DIRECTORY}/arm-none-eabi-gcc.exe)
+set(CMAKE_AR            ${GCC_DIRECTORY}/arm-none-eabi-ar.exe)
+set(CMAKE_OBJCOPY       ${GCC_DIRECTORY}/arm-none-eabi-objcopy.exe)
+set(CMAKE_OBJDUMP       ${GCC_DIRECTORY}/arm-none-eabi-objdump.exe)
+set(SIZE                ${GCC_DIRECTORY}/arm-none-eabi-size.exe)
