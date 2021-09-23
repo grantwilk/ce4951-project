@@ -11,5 +11,5 @@
 - [STM32 Cube MX](https://www.st.com/en/development-tools/stm32cubemx.html)
 
 ### Resources
-- [CLion + STM32 Setup Guide]()
+- [CLion + STM32 Development Environment Setup Guide](https://youtu.be/Gsje7zvYH1w)
 - [MinGW + ARM GCC + OpenOCD Toolchain Download](https://drive.google.com/file/d/1OM_XLyNZpI7fyz9NIKdttNfzw98cApnO/view?usp=sharing)
