@@ -21,19 +21,6 @@
 # include "error.h"
 
 
-/* ------------------------------------- Static Functions --------------------------------------- */
-
-
-/**
- * @brief   Prints a reset header containing basic device information
- *
- * @param   void
- *
- * @return  Error code
- */
-static ERROR_CODE printResetHeader( void );
-
-
 /* ------------------------------------------- Footer ------------------------------------------- */
 
 

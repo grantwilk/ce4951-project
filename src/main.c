@@ -40,38 +40,11 @@ int main( void )
     errorCode = uinit( 115200, 10000 );
     ERROR_HANDLE_FATAL( errorCode );
 
-    // print reset header
-    // printResetHeader();
-
     // print hello world message
     uprintf("Hello, world!");
 
     // enter endless loop
     while(1);
-}
-
-
-/* ------------------------------------- Static Functions --------------------------------------- */
-
-
-/**
- * @brief   Prints a reset header containing basic device information
- *
- * @param   void
- *
- * @return  Error code
- */
-static ERROR_CODE printResetHeader( void )
-{
-    ERROR_CODE errorCode;
-
-    errorCode = uprintf( "\n\n/* ================== DEVICE RESET ================== */\n" );
-    ELEVATE_IF_ERROR( errorCode );
-
-    errorCode = uprintf( "/* ---------------- BEGIN DEBUG PRINT --------------- */\n\n" );
-    ELEVATE_IF_ERROR( errorCode );
-
-    RETURN_NO_ERROR();
 }
 
 
