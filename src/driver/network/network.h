@@ -1,8 +1,8 @@
-#ifndef NETWORK_H
-#define NETWORK_H
+#ifndef DRIVER_NETWORK_H
+#define DRIVER_NETWORK_H
 
 #include "error.h"
 
 ERROR_CODE network_init();
 
-#endif
+#endif // DRIVER_NETWORK_H
