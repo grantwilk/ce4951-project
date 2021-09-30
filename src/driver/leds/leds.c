@@ -1,13 +1,16 @@
 #include "leds.h"
-void led_init()
-{
 
+ERROR_CODE led_init()
+{
+    RETURN_NO_ERROR();
 }
-void led_clear()
-{
 
+ERROR_CODE led_clear()
+{
+    RETURN_NO_ERROR();
 }
-void led_set(enum LEDS led, bool set)
-{
 
+ERROR_CODE led_set(leds_t led, bool set)
+{
+    RETURN_NO_ERROR();
 }

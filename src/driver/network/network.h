@@ -1,6 +1,8 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
-void network_init();
+#include "error.h"
+
+ERROR_CODE network_init();
 
 #endif

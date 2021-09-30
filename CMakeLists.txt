@@ -43,7 +43,10 @@ endif ()
 include_directories(
     src
     src/driver
+    src/driver/leds
+    src/driver/network
     src/driver/serial
+    src/driver/timer
     src/system
     src/util
     stm32

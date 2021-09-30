@@ -1,11 +1,12 @@
 #ifndef TIMEOUT_H
 #define TIMEOUT_H
 
+#include "error.h"
 
-void timeout_init(long us);
+ERROR_CODE timeout_init(long us);
 
-void timeout_set_timeout(long us);
+ERROR_CODE timeout_set_timeout(long us);
 
-void timeout_reset();
+ERROR_CODE timeout_reset();
 
 #endif

@@ -1,10 +1,11 @@
 #ifndef STATE_H
 #define STATE_H
 
-enum state {BUSY, IDLE, COLLISION};
+#include "error.h"
 
-state getCurrentState();
+typedef enum state { BUSY, IDLE, COLLISION } state_t;
 
-void setCurrentState(state nextState);
+ERROR_CODE state_set(state_t state);
+state_t state_get();
 
 #endif

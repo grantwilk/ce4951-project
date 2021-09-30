@@ -1,12 +1,12 @@
 #include "state.h"
 
-
-enum state getCurrentState()
+ERROR_CODE state_set(state_t state)
 {
-
+    RETURN_NO_ERROR();
 }
 
-void setCurrentState(enum state nextState)
+state_t state_get()
 {
-
+    return 0;
 }
+

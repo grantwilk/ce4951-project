@@ -1,12 +1,13 @@
-#ifndef LEDS_H
-#define LEDS_H
+#ifndef DRIVER_LEDS_H
+#define DRIVER_LEDS_H
 
 #include <stdbool.h>
+#include "error.h"
 
-enum LEDS {LED_GREEN, LED_RED, LED_YELLOW};
+typedef enum leds { LED_GREEN, LED_RED, LED_YELLOW } leds_t;
 
-void led_init();
-void led_clear();
-void led_set(enum LEDS led, bool set);
+ERROR_CODE leds_init();
+ERROR_CODE leds_clear();
+ERROR_CODE leds_set(leds_t led, bool set);
 
-#endif
+#endif // DRIVER_LEDS_H
