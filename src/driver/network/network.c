@@ -42,10 +42,15 @@ void EXTI15_10_IRQHandler()
 	__asm__("CPSID i"); //disable interrupts
 	if (exti->PR & EXTI_PR_PR12) 
 	{
-		bool on = gpioc->IDR >> GPIO_IDR_ID12_Pos;
+		bool isHigh = gpioc->IDR >> GPIO_IDR_ID12_Pos;
+		timeout_reset();
+
 		exti->PR = EXTI_PR_PR12; //clear pending interrupt
-		state_set(BUSY);
-    timeout_reset();
+		
+		if (!isHigh) {
+			state_set(BUSY);
+		}
+
 	}
 	__asm__("CPSIE i"); //enable interrupts
 }
