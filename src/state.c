@@ -8,7 +8,6 @@
  */
 
 #include "state.h"
-//#include "error.h"
 
 
 //Current State
@@ -35,7 +34,7 @@ ERROR_CODE state_set(STATE_TYPE state)
         current_state = COLLISION;
     }else
     {
-        //Throw an Error here
+        THROW_ERROR(ERROR_CODE_SET_UNKNOWN_STATE);
     }
 
     RETURN_NO_ERROR();
@@ -53,4 +52,3 @@ STATE_TYPE state_get()
 {
     return current_state;
 }
-
