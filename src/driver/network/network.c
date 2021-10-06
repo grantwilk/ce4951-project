@@ -43,7 +43,13 @@ void EXTI15_10_IRQHandler()
     if (exti->PR & EXTI_PR_PR12)
     {
         bool isHigh = gpioc->IDR >> GPIO_IDR_ID12_Pos;
+
         timeout_reset();
+
+        if (timeout_is_running())
+        {
+            timeout_start();
+        }
 
         exti->PR = EXTI_PR_PR12; //clear pending interrupt
 
