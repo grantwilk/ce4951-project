@@ -43,6 +43,8 @@ typedef enum
     ERROR_CODE_DRIVER_LEDS_NOT_INITIALIZED,                     // 0x0D
     ERROR_CODE_DRIVER_LEDS_ALREADY_INITIALIZED,                 // 0x0E
 
+    ERROR_CODE_SET_UNKNOWN_STATE,                               // 0x0F
+
 } ERROR_CODE;
 
 

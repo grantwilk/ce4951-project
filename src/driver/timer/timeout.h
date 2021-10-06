@@ -18,6 +18,7 @@
 
 
 # include "error.h"
+#include <stdbool.h>
 
 
 /* ------------------------------- Functions -------------------------------- */
@@ -31,6 +32,7 @@ ERROR_CODE timeout_reset();
 
 ERROR_CODE timeout_set_timeout( uint16_t us );
 
+bool timeout_is_running();
 
 /* --------------------------------- Footer --------------------------------- */
 
