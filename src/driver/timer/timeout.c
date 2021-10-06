@@ -229,11 +229,13 @@ void TIM3_IRQHandler()
         {
             // uprintf("IDLE\n");
             ERROR_HANDLE_NON_FATAL( state_set( IDLE ) );
+            timeout_stop();
         }
         else
         {
             // uprintf("COLLISION\n");
             ERROR_HANDLE_NON_FATAL( state_set( COLLISION ) );
+            timeout_stop();
         }
     }
 }
