@@ -10,9 +10,19 @@
 /* ------------------------------------------ Includes ------------------------------------------ */
 
 
+
 # include "main.h"
 # include "sysclock.h"
 # include "uio.h"
+
+# include "network.h"
+# include "timeout.h"
+
+
+/* ------------------------------------------ Defines ------------------------------------------- */
+
+
+# define CE4981_NETWORK_TIMEOUT_PERIOD_US  ( 1100U )
 
 
 /* ----------------------------------------- Functions ------------------------------------------ */
@@ -40,8 +50,11 @@ int main( void )
     errorCode = uinit( 115200, 10000 );
     ERROR_HANDLE_FATAL( errorCode );
 
-    // print hello world message
-    uprintf("Hello, world!\n");
+    // start network
+    ERROR_HANDLE_FATAL( network_init() );
+
+    // start timeout timer
+    ERROR_HANDLE_FATAL( timeout_init( CE4981_NETWORK_TIMEOUT_PERIOD_US ) );
 
     // enter endless loop
     while(1);

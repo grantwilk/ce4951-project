@@ -1,12 +1,41 @@
-#ifndef DRIVER_TIMEOUT_H
-#define DRIVER_TIMEOUT_H
+/* --------------------------------- Header --------------------------------- */
 
-#include "error.h"
 
-ERROR_CODE timeout_init(long us);
+/**
+ * @file    timeout.h
+ * @brief   Contains functions for the idle/conflict timeout timer (TIM3)
+ */
 
-ERROR_CODE timeout_set_timeout(long us);
 
+/* ------------------------------ Header Guard ------------------------------ */
+
+
+# ifndef DRIVER_TIMEOUT_H
+# define DRIVER_TIMEOUT_H
+
+
+/* -------------------------------- Includes -------------------------------- */
+
+
+# include "error.h"
+
+
+/* ------------------------------- Functions -------------------------------- */
+
+
+ERROR_CODE timeout_init( uint16_t us );
+
+ERROR_CODE timeout_start();
+ERROR_CODE timeout_stop();
 ERROR_CODE timeout_reset();
 
-#endif // DRIVER_TIMEOUT_H
+ERROR_CODE timeout_set_timeout( uint16_t us );
+
+
+/* --------------------------------- Footer --------------------------------- */
+
+
+# endif // DRIVER_TIMEOUT_H
+
+
+/* -------------------------------------------------------------------------- */
