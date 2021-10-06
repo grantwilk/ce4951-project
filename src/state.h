@@ -1,11 +1,31 @@
+/*
+ * Luke Schlavensky
+ * 10/3/21
+ * state.h
+ */
+
 #ifndef STATE_H
 #define STATE_H
 
 #include "error.h"
 
-typedef enum state { BUSY, IDLE, COLLISION } state_t;
 
-ERROR_CODE state_set(state_t state);
-state_t state_get();
+/**
+ * @brief   The states
+ */
+typedef enum { BUSY, IDLE, COLLISION } STATE_TYPE;
+
+
+/**
+ * @brief   Sets the current state
+ */
+ERROR_CODE state_set(STATE_TYPE state);
+
+
+/**
+ * @brief   Gets the current state
+ */
+STATE_TYPE state_get();
+
 
 #endif // STATE_H
