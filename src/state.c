@@ -8,6 +8,7 @@
  */
 
 #include "state.h"
+#include "leds.h"
 
 
 //Current State
@@ -26,21 +27,24 @@ ERROR_CODE state_set(STATE_TYPE state)
     if(state == IDLE)
     {
         current_state = IDLE;
-        //Set only IDLE LED
+        ELEVATE_IF_ERROR(leds_clear());
+        ELEVATE_IF_ERROR(leds_set(LED_GREEN,true));
     }else if(state == BUSY)
     {
         current_state = BUSY;
-        //Set only BUSY LED
+        ELEVATE_IF_ERROR(leds_clear());
+        ELEVATE_IF_ERROR(leds_set(LED_YELLOW,true));
     }else if(state == COLLISION)
     {
         current_state = COLLISION;
-        //Set only COLLISION LED
+        ELEVATE_IF_ERROR(leds_clear());
+        ELEVATE_IF_ERROR(leds_set(LED_RED,true));
     }else
     {
         THROW_ERROR(ERROR_CODE_SET_UNKNOWN_STATE);
     }
 
-    RETURN_NO_ERROR();
+//RETURN_NO_ERROR();
 }
 
 
