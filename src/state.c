@@ -44,7 +44,7 @@ ERROR_CODE state_set(STATE_TYPE state)
         THROW_ERROR(ERROR_CODE_SET_UNKNOWN_STATE);
     }
 
-//RETURN_NO_ERROR();
+    RETURN_NO_ERROR();
 }
 
 
