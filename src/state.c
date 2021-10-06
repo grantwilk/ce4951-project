@@ -26,12 +26,15 @@ ERROR_CODE state_set(STATE_TYPE state)
     if(state == IDLE)
     {
         current_state = IDLE;
+        //Set only IDLE LED
     }else if(state == BUSY)
     {
         current_state = BUSY;
+        //Set only BUSY LED
     }else if(state == COLLISION)
     {
         current_state = COLLISION;
+        //Set only COLLISION LED
     }else
     {
         THROW_ERROR(ERROR_CODE_SET_UNKNOWN_STATE);
