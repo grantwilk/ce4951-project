@@ -46,7 +46,7 @@ void EXTI15_10_IRQHandler()
 
         timeout_reset();
 
-        if (timeout_is_running())
+        if (!timeout_is_running())
         {
             timeout_start();
         }
