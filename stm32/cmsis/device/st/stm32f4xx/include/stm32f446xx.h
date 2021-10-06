@@ -8171,7 +8171,7 @@ typedef struct
 #define GPIO_MODER_MODE1                 GPIO_MODER_MODER1                  
 #define GPIO_MODER_MODE1_0               GPIO_MODER_MODER1_0
 #define GPIO_MODER_MODE1_1               GPIO_MODER_MODER1_1
-#define GPIO_MODER_MODE2_Pos             GPIO_MODER_MODER2_PoS
+#define GPIO_MODER_MODE2_Pos             GPIO_MODER_MODER2_Pos
 #define GPIO_MODER_MODE2_Msk             GPIO_MODER_MODER2_Msk
 #define GPIO_MODER_MODE2                 GPIO_MODER_MODER2                 
 #define GPIO_MODER_MODE2_0               GPIO_MODER_MODER2_0

@@ -1,69 +1,88 @@
 #include "leds.h"
 
-ERROR_CODE led_init()
+#define GPIO_MODE_OUTPUT    ( 0b01U )
+
+bool leds_initialized = false;
+
+ERROR_CODE leds_init()
 {
+    // throw an error if the LEDs are already initialized
+    if (leds_initialized)
+    {
+        THROW_ERROR( ERROR_CODE_DRIVER_LEDS_ALREADY_INITIALIZED );
+    }
+
     // SET UP PC8(red), PC6(yellow), PC5(green) in output pull up resistor mode
-    rcc->AHB2RSTR |= RCC_APB2ENR_SYSCFGEN; // System config enabled
-    rcc->AHB1ENR |= RCC_AHB1ENR_GPIOCEN; // GPIO C enabled
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN; // GPIO B enabled
 
-    gpioc->MODER |= GPIO_MODER_MODER8; // GPIO c8 Output
-    gpioc->MODER |= GPIO_MODER_MODER6; // GPIO c6 Output
-    gpioc->MODER |= GPIO_MODER_MODER5; // GPIO c5 Output
+    // configure GPIO MODER
+    GPIOB->MODER &= ~(GPIO_MODER_MODER5);
+    GPIOB->MODER &= ~(GPIO_MODER_MODER6);
+    GPIOB->MODER &= ~(GPIO_MODER_MODER7);
 
-    gpioc->PUPDR &= ~GPIO_PUPDR_PUPD8; // GPIO c8 pull up
-    gpioc->PUPDR |= 0b01 << GPIO_PUPDR_PUPD8_Pos;
-    gpioc->PUPDR &= ~GPIO_PUPDR_PUPD6; // GPIO c6 pull up
-    gpioc->PUPDR |= 0b01 << GPIO_PUPDR_PUPD6_Pos;
-    gpioc->PUPDR &= ~GPIO_PUPDR_PUPD5; // GPIO c5 pull up
-    gpioc->PUPDR |= 0b01 << GPIO_PUPDR_PUPD5_Pos;
+    GPIOB->MODER |= (GPIO_MODE_OUTPUT << GPIO_MODER_MODER5_Pos);
+    GPIOB->MODER |= (GPIO_MODE_OUTPUT << GPIO_MODER_MODER6_Pos);
+    GPIOB->MODER |= (GPIO_MODE_OUTPUT << GPIO_MODER_MODER7_Pos);
 
-    initialized = true;
-    leds_clear(); // set all to off at the start
+    // set initialization flag
+    leds_initialized = true;
+
+    // clear the LEDs
+    leds_clear();
 
     RETURN_NO_ERROR();
 }
 
 ERROR_CODE leds_clear()
 {
-    if(initialized) {
-        //pull up resistor leads to logic 1 being off
-        gpioc->ODR |= (GPIO_ODR_OD8 | GPIO_ODR_OD6 | GPIO_ODR_OD5); // set all to off
-    } else {
-        //if not initialized ERROR
-        THROW_ERROR(0x07);
+    if ( !leds_initialized )
+    {
+        THROW_ERROR( ERROR_CODE_DRIVER_LEDS_NOT_INITIALIZED );
     }
+
+    GPIOB->ODR &= ~(GPIO_ODR_OD5 | GPIO_ODR_OD6 | GPIO_ODR_OD7);
+
     RETURN_NO_ERROR();
 }
 
-ERROR_CODE led_set(leds_t led, bool set)
+ERROR_CODE leds_set(leds_t led, bool set)
 {
-   if(initialized) {
-       if(set) {
-           switch(led) {
-               //pull up resistor leads to logic 0 being ON
-               case LED_RED : gpioc->ODR &= ~GPIO_ODR_OD8;
-                   break;
-               case LED_YELLOW : gpioc->ODR &= ~GPIO_ODR_OD8;
-                   break;
-               case LED_GREEN : gpioc->ODR &= ~GPIO_ODR_OD8;
-                   break;
-               default : THROW_ERROR(0x01);
-           }
-       }else {
-           switch(led) {
-               //pull up resistor leads to logic 1 being off
-               case LED_RED : gpioc->ODR |= GPIO_ODR_OD8;
-                   break;
-               case LED_YELLOW : gpioc->ODR |= GPIO_ODR_OD8;
-                   break;
-               case LED_GREEN : gpioc->ODR |= GPIO_ODR_OD8;
-                   break;
-               default : THROW_ERROR(0x01);
-           }
+    if (!leds_initialized)
+    {
+        THROW_ERROR( ERROR_CODE_DRIVER_LEDS_NOT_INITIALIZED );
+    }
+
+   if( set )
+   {
+       switch(led)
+       {
+           case LED_RED:
+               GPIOB->ODR |= GPIO_ODR_OD5;
+               break;
+           case LED_YELLOW:
+               GPIOB->ODR |= GPIO_ODR_OD6;
+               break;
+           case LED_GREEN:
+               GPIOB->ODR |= GPIO_ODR_OD7;
+               break;
        }
-   } else {
-       //if not initialized ERROR
-       THROW_ERROR(0x07);
    }
+
+   else
+   {
+       switch(led)
+       {
+           case LED_RED:
+               GPIOB->ODR &= ~GPIO_ODR_OD5;
+               break;
+           case LED_YELLOW:
+               GPIOB->ODR &= ~GPIO_ODR_OD6;
+               break;
+           case LED_GREEN:
+               GPIOB->ODR &= ~GPIO_ODR_OD7;
+               break;
+       }
+   }
+
     RETURN_NO_ERROR();
 }
