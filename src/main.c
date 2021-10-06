@@ -10,11 +10,11 @@
 /* ------------------------------------------ Includes ------------------------------------------ */
 
 
-
 # include "main.h"
 # include "sysclock.h"
 # include "uio.h"
 
+# include "leds.h"
 # include "network.h"
 # include "timeout.h"
 
@@ -55,6 +55,9 @@ int main( void )
 
     // start timeout timer
     ERROR_HANDLE_FATAL( timeout_init( CE4981_NETWORK_TIMEOUT_PERIOD_US ) );
+
+    // initialize leds
+    ERROR_HANDLE_FATAL( leds_init() );
 
     // enter endless loop
     while(1);

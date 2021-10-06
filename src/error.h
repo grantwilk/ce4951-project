@@ -40,7 +40,10 @@ typedef enum
     ERROR_CODE_DRIVER_TIMER_TIMEOUT_NOT_RUNNING,                // 0x0B
     ERROR_CODE_DRIVER_TIMER_TIMEOUT_ALREADY_RUNNING,            // 0x0C
 
-    ERROR_CODE_SET_UNKNOWN_STATE,
+    ERROR_CODE_DRIVER_LEDS_NOT_INITIALIZED,                     // 0x0D
+    ERROR_CODE_DRIVER_LEDS_ALREADY_INITIALIZED,                 // 0x0E
+
+    ERROR_CODE_SET_UNKNOWN_STATE,                               // 0x0F
 
 } ERROR_CODE;
 
