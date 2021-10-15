@@ -42,7 +42,6 @@ endif ()
 
 include_directories(
     src
-    src/**
     src/driver
     src/driver/leds
     src/driver/network

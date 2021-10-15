@@ -62,6 +62,7 @@ int main( void )
     ERROR_HANDLE_FATAL( leds_init() );
 
     // enter endless loop
+    //todo implement UART program, reading lines of text from user and sending via network_tx
     while(1);
 }
 
