@@ -16,6 +16,7 @@
 
 # include "leds.h"
 # include "network.h"
+# include "channel_monitor.h"
 # include "timeout.h"
 
 
@@ -51,6 +52,7 @@ int main( void )
     ERROR_HANDLE_FATAL( errorCode );
 
     // start network
+    ERROR_HANDLE_FATAL( channel_monitor_init() );
     ERROR_HANDLE_FATAL( network_init() );
 
     // start timeout timer
