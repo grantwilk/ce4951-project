@@ -1,5 +1,5 @@
-#include <stdint.h>
 #include <stdbool.h>
+#include <uio.h>
 #include "stm32f446xx.h"
 
 #include "network.h"
@@ -47,10 +47,7 @@ void EXTI15_10_IRQHandler()
 
         EXTI->PR = EXTI_PR_PR12; //clear pending interrupt
 
-        if (!isHigh)
-        {
-            state_set(BUSY);
-        }
+        ERROR_HANDLE_NON_FATAL( state_set(BUSY) );
     }
     __asm__("CPSIE i"); //enable interrupts
 }
