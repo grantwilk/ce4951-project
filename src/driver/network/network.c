@@ -1,3 +1,7 @@
+#include <stdbool.h>
+#include <uio.h>
+#include "stm32f446xx.h"
+
 #include "network.h"
 #include "hb_timer.h"
 
@@ -56,6 +60,8 @@ bool network_startTx()
     {
         //todo start tx
         return true;
+
+        ERROR_HANDLE_NON_FATAL( state_set(BUSY) );
     }
 }
 

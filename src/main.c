@@ -18,6 +18,7 @@
 # include "network.h"
 # include "channel_monitor.h"
 # include "timeout.h"
+#include "state.h"
 
 
 /* ------------------------------------------ Defines ------------------------------------------- */
@@ -51,6 +52,9 @@ int main( void )
     errorCode = uinit( 115200, 10000 );
     ERROR_HANDLE_FATAL( errorCode );
 
+    // print reset header
+    uprintf("/* ---------- DEVICE RESET ---------- */\n\n");
+
     // start network
     ERROR_HANDLE_FATAL( channel_monitor_init() );
     ERROR_HANDLE_FATAL( network_init() );
@@ -60,6 +64,9 @@ int main( void )
 
     // initialize leds
     ERROR_HANDLE_FATAL( leds_init() );
+
+    // set initial state to IDLE
+    ERROR_HANDLE_FATAL( state_set( IDLE ) );
 
     // enter endless loop
     //todo implement UART program, reading lines of text from user and sending via network_tx
