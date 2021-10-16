@@ -3,51 +3,72 @@
 #include "stm32f446xx.h"
 
 #include "network.h"
-#include "state.h"
-#include "timeout.h"
+#include "hb_timer.h"
 
-#define EXTI_15_10_NVIC 8
+#define MSG_QUEUE_SIZE 10
+#define HALF_BIT_TIME_US 1000 //todo fixme
+
+#define MAX_MESSAGE_SIZE 512 //todo fixme
+#define MAX_MESSAGE_SIZE_MANCHESTER MAX_MESSAGE_SIZE * 2
+
+typedef struct msg_struct
+{
+    char buffer[MAX_MESSAGE_SIZE];
+    size_t size;
+} msg_t;
+
+
+static msg_t msgQueue[MSG_QUEUE_SIZE];
+
+static int startIdx = 0;
+static int endIdx = 0;
+
 
 ERROR_CODE network_init()
 {
-
-    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN; //SYSCFGEN
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;  //GPIOCEN
-
-    GPIOC->MODER &= ~GPIO_MODER_MODER12; //set PC12 as input
-
-    GPIOC->PUPDR &= ~GPIO_PUPDR_PUPD12;
-    GPIOC->PUPDR |= 0b01 << GPIO_PUPDR_PUPD12_Pos; //set pullup resistor
-
-    SYSCFG->EXTICR[3] &= ~SYSCFG_EXTICR4_EXTI12;
-    SYSCFG->EXTICR[3] |= SYSCFG_EXTICR4_EXTI12 & SYSCFG_EXTICR4_EXTI12_PC; //EXTI line 12 set to bank C
-
-    NVIC->ISER[1] |= 1 << EXTI_15_10_NVIC; //Set enable in NVIC, NVIC POS 40
-
-    EXTI->IMR |= EXTI_IMR_IM12;   //Unmask in EXTI
-    EXTI->FTSR |= EXTI_FTSR_TR12; //Set falling trigger
-    EXTI->RTSR |= EXTI_RTSR_TR12; //set rising trigger
-
+    hb_timer_init(HALF_BIT_TIME_US);
     RETURN_NO_ERROR();
 }
 
-void EXTI15_10_IRQHandler()
+ERROR_CODE network_tx(char* msg, size_t size) 
 {
-    __asm__("CPSID i"); //disable interrupts
-    if (EXTI->PR & EXTI_PR_PR12)
+    if (network_tx_isFull())
     {
-        bool isHigh = GPIOC->IDR & GPIO_IDR_ID12;
+        THROW_ERROR(ERROR_CODE_NETWORK_TX_FULL);
+    }
 
-        timeout_reset();
+    //todo packetize message & store
 
-        if (!timeout_is_running())
-        {
-            timeout_start();
-        }
 
-        EXTI->PR = EXTI_PR_PR12; //clear pending interrupt
+    endIdx = (endIdx + 1) % MSG_QUEUE_SIZE;
+    RETURN_NO_ERROR();
+}
+
+bool network_tx_isFull()
+{
+    return (endIdx + 1) % MSG_QUEUE_SIZE == startIdx;
+}
+
+//Returns false if tx buffer is empty
+bool network_startTx()
+{
+    if (endIdx == startIdx)
+    {
+        return false;
+    } 
+    else
+    {
+        //todo start tx
+        return true;
 
         ERROR_HANDLE_NON_FATAL( state_set(BUSY) );
     }
-    __asm__("CPSIE i"); //enable interrupts
+}
+
+//todo implement IRQHandler for hb_timer
+void TIMXXX_IRQHandler()
+{
+    static int byteIdx;
+    static int bitIdx;
+
 }

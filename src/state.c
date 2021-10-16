@@ -9,6 +9,7 @@
 
 #include "state.h"
 #include "leds.h"
+#include "network.h"
 
 
 //Current State
@@ -27,6 +28,7 @@ ERROR_CODE state_set(STATE_TYPE state)
     if(state == IDLE)
     {
         current_state = IDLE;
+        network_startTx();
         ELEVATE_IF_ERROR(leds_clear());
         ELEVATE_IF_ERROR(leds_set(LED_GREEN,true));
     }else if(state == BUSY)
