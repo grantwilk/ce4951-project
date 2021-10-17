@@ -28,7 +28,7 @@ ERROR_CODE state_set(STATE_TYPE state)
     if(state == IDLE)
     {
         current_state = IDLE;
-        network_startTx();
+        network_start_tx();
         ELEVATE_IF_ERROR(leds_clear());
         ELEVATE_IF_ERROR(leds_set(LED_GREEN,true));
     }else if(state == BUSY)

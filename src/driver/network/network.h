@@ -8,10 +8,13 @@
 
 ERROR_CODE network_init();
 
-ERROR_CODE network_tx(char* msg, size_t size);
+ERROR_CODE network_tx(void * buffer, size_t size);
 
-bool network_tx_isFull();
+bool network_msg_queue_is_full();
+bool network_msg_queue_is_empty();
 
-bool network_startTx();
+static ERROR_CODE network_start_tx();
+
+static bool network_msg_queue_push(void * buffer, size_t size);
 
 #endif // DRIVER_NETWORK_H
