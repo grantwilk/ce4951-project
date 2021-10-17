@@ -136,7 +136,7 @@ bool network_msg_queue_is_empty()
  *
  * @return  Error code
  */
-static ERROR_CODE network_start_tx()
+ERROR_CODE network_start_tx()
 {
     // throw an error if the network is not initialized
     if (!network_is_init)
