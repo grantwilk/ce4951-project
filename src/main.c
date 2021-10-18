@@ -81,14 +81,14 @@ int main( void )
     {
         //int msize = 0;
         //if(!network_tx_isFull()) {
-        //  for(uint i = 1; i < buffer.size && i > 0 && buffer[i] != NULL; ++i) {
-        //      if(buffer[i-2] == NULL) {
+        //  for(uint i = 0; i < buffer.size && i >= 0; ++i) {
+        //      if(i > 0 && buffer[i-1] == NULL) { //i>0 should avoid buffer[-1]
         //          //IF last character was null end loop with one less total character
         //          i = 0;
         //          --msize;
-        //      } elsif(ERROR_CODE_DRIVER_SERIAL_UART_TIMEOUT == uartRxByte(*buffer[i-1], timeout)) {
+        //      } elsif(ERROR_CODE_DRIVER_SERIAL_UART_TIMEOUT == uartRxByte(*buffer[i], timeout)) {
         //          //IF pulling gives us a timeout end loop.
-        //          i = 0; //end for loop
+        //          i = 0;
         //      } else {
         //          ++msize;
         //      }
