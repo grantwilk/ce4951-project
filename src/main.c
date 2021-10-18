@@ -13,6 +13,7 @@
 # include "main.h"
 # include "sysclock.h"
 # include "uio.h"
+# include "uart.h"
 
 # include "leds.h"
 # include "network.h"
@@ -55,6 +56,9 @@ int main( void )
     // print reset header
     uprintf("/* ---------- DEVICE RESET ---------- */\n\n");
 
+    // Initialize uart.c for reading and writing
+    ERROR_HANDLE_FATAL(uartInit( 115200 ) );
+
     // start network
     ERROR_HANDLE_FATAL( channel_monitor_init() );
     ERROR_HANDLE_FATAL( network_init() );
@@ -70,7 +74,28 @@ int main( void )
 
     // enter endless loop
     //todo implement UART program, reading lines of text from user and sending via network_tx
-    while(1);
+
+    // make buffer of max message size
+    //char *buffer = new char[max_message_size];
+    while(1)
+    {
+        //int msize = 0;
+        //if(!network_tx_isFull()) {
+        //  for(uint i = 1; i < buffer.size && i > 0 && buffer[i] != NULL; ++i) {
+        //      if(buffer[i-2] == NULL) {
+        //          //IF last character was null end loop with one less total character
+        //          i = 0;
+        //          --msize;
+        //      } elsif(ERROR_CODE_DRIVER_SERIAL_UART_TIMEOUT == uartRxByte(*buffer[i-1], timeout)) {
+        //          //IF pulling gives us a timeout end loop.
+        //          i = 0; //end for loop
+        //      } else {
+        //          ++msize;
+        //      }
+        //  }
+        //  network_tx(buffer, msize)
+        //}
+    }
 }
 
 
