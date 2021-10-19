@@ -54,6 +54,13 @@ static int pop_idx = 0;
  */
 ERROR_CODE network_init()
 {
+    // Initialize PC11 as an Output
+    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN; //SYSCFGEN
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;  //GPIOCEN
+
+    GPIOC->MODER &= ~GPIO_MODER_MODER11;
+    GPIOC->MODER |= GPIO_MODER_MODER11_0; //Set PC11 as output
+
     // throw an error if the network is already initialized
     if (network_is_init)
     {
@@ -198,7 +205,78 @@ static bool network_msg_queue_pop()
 //todo implement IRQHandler for hb_timer
 void TIMXXX_IRQHandler()
 {
-    static int byteIdx;
-    static int bitIdx;
+    static int byteIdx; // A value 0 - 511
+    static int bitIdx; // A value 0 - 7
+
+    // Get the message index of the circular buffer
+    int msg_idx;
+    if (pop_idx < 10)
+    {
+        msg_idx = pop_idx + 1;
+    }else
+    {
+        msg_idx = 0;
+    }
+
+    // Get the current state
+    STATE_TYPE state = state_get();
+
+    if(state != COLLISION)
+    {
+        // Reset the timer
+        hb_timer_reset_and_start();
+
+        if(byteIdx == msg_queue[msg_idx].size)
+        {
+            // We transmitted the whole message
+
+            // Stop the timer
+            hb_timer_stop();
+            // Set the byteIdx and bitIdx to default
+            byteIdx = 0;
+            bitIdx = 0;
+            // Should always return True because when we call this method there is always a message present
+            network_msg_queue_pop();
+            // Output a 1 to PC11 - IDLE State
+            GPIOC->ODR |= GPIO_ODR_OD11;
+
+        } else
+        {
+            // Get the next bit from the message buffer
+            bool bit = msg_queue[msg_idx].buffer[byteIdx] >> (bitIdx) & 0b01;
+
+            if(bit == 1)
+            {
+                // Output a 1 to PC11
+                GPIOC->ODR |= GPIO_ODR_OD11;
+            }else {
+                // Output a 0 to PC11
+                GPIOC->ODR &= ~GPIO_ODR_OD11;
+            }
+
+            // If bit index is less than 7 increment
+            if(bitIdx < 7)
+            {
+                // Increment the bit index
+                bitIdx++;
+            }else
+            {
+                // Increment the byte index
+                byteIdx++;
+                // Set the bit index back to 0
+                bitIdx = 0;
+            }
+        }
+
+    } else
+    {
+        // Stop the timer we are in COLLISION State
+        hb_timer_stop();
+        // Reset Transmission of the data
+        byteIdx = 0;
+        bitIdx = 0;
+        // Output a 1 to PC11
+        GPIOC->ODR |= GPIO_ODR_OD11;
+    }
 
 }
