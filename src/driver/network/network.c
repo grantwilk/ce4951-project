@@ -205,8 +205,8 @@ static bool network_msg_queue_pop()
 //todo implement IRQHandler for hb_timer
 void TIMXXX_IRQHandler()
 {
-    static int byteIdx; // A value 0 - 511
-    static int bitIdx; // A value 0 - 7
+    static int byteIdx = 0; // A value 0 - 511
+    static int bitIdx = 0; // A value 0 - 7
 
     // Get the message index of the circular buffer
     int msg_idx;
