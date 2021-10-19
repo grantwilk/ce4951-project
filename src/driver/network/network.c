@@ -60,8 +60,6 @@ bool network_startTx()
     {
         //todo start tx
         return true;
-
-        ERROR_HANDLE_NON_FATAL( state_set(BUSY) );
     }
 }
 

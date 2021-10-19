@@ -10,16 +10,16 @@
 /* ------------------------------------------ Includes ------------------------------------------ */
 
 
+# include <stdio.h>
 # include "main.h"
 # include "sysclock.h"
 # include "uio.h"
-# include "uart.h"
 
 # include "leds.h"
 # include "network.h"
 # include "channel_monitor.h"
 # include "timeout.h"
-#include "state.h"
+# include "state.h"
 
 
 /* ------------------------------------------ Defines ------------------------------------------- */
@@ -56,21 +56,28 @@ int main( void )
     // print reset header
     uprintf("/* ---------- DEVICE RESET ---------- */\n\n");
 
-    // Initialize uart.c for reading and writing
-    ERROR_HANDLE_FATAL(uartInit( 115200 ) );
-
     // start network
-    ERROR_HANDLE_FATAL( channel_monitor_init() );
-    ERROR_HANDLE_FATAL( network_init() );
+    // ERROR_HANDLE_FATAL( channel_monitor_init() );
+    // ERROR_HANDLE_FATAL( network_init() );
 
     // start timeout timer
-    ERROR_HANDLE_FATAL( timeout_init( CE4981_NETWORK_TIMEOUT_PERIOD_US ) );
+    // ERROR_HANDLE_FATAL( timeout_init( CE4981_NETWORK_TIMEOUT_PERIOD_US ) );
 
     // initialize leds
-    ERROR_HANDLE_FATAL( leds_init() );
+    // ERROR_HANDLE_FATAL( leds_init() );
 
     // set initial state to IDLE
-    ERROR_HANDLE_FATAL( state_set( IDLE ) );
+    // ERROR_HANDLE_FATAL( state_set( IDLE ) );
+
+
+    while(1)
+    {
+        char str[256];
+        fgets(str, 256, stdin);
+        fflush(stdin);
+        uprintf("RECEIVED: %s\n", str);
+    }
+
 
     // enter endless loop
     //todo implement UART program, reading lines of text from user and sending via network_tx
