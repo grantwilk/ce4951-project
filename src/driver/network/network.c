@@ -202,7 +202,9 @@ static bool network_msg_queue_pop()
     return true;
 }
 
-//todo implement IRQHandler for hb_timer
+/**
+ * IRQ Handler for hb_timer
+ */
 void TIMXXX_IRQHandler()
 {
     static int byteIdx = 0; // A value 0 - 511
@@ -228,7 +230,7 @@ void TIMXXX_IRQHandler()
 
         if(byteIdx == msg_queue[msg_idx].size)
         {
-            // We transmitted the whole message
+            // The transmission of the message is complete
 
             // Stop the timer
             hb_timer_stop();

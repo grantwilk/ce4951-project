@@ -17,4 +17,6 @@ ERROR_CODE network_start_tx();
 
 static bool network_msg_queue_push(void * buffer, size_t size);
 
+void TIMXXX_IRQHandler();
+
 #endif // DRIVER_NETWORK_H
