@@ -186,7 +186,7 @@ static bool network_msg_queue_push(void * buffer, size_t size)
 static bool network_msg_queue_pop()
 {
     // return false if the queue is empty (cannot pop element)
-    if (!network_msg_queue_is_empty())
+    if (network_msg_queue_is_empty())
     {
         return false;
     }
