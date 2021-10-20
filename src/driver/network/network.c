@@ -244,7 +244,7 @@ void TIM4_IRQHandler()
         } else
         {
             // Get the next bit from the message buffer
-            bool bit = msg_queue[msg_idx].buffer[byteIdx] >> (bitIdx) & 0b01;
+            bool bit = msg_queue[msg_idx].buffer[byteIdx] >> (7 - bitIdx) & 0b01;
 
             if(bit == 1)
             {
