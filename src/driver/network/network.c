@@ -30,12 +30,9 @@ typedef struct
 } msg_queue_node_t;
 
 /**
- * Network circular message queue. One is added to the message queue size
- * because there is one unused node when the queue is full.
- *
- * So, 10 + 1 total nodes - 1 unusable node  = 10 usable nodes.
+ * Network circular message queue.
  */
-static msg_queue_node_t msg_queue[MSG_QUEUE_SIZE + 1];
+static msg_queue_node_t msg_queue[MSG_QUEUE_SIZE];
 
 /**
  * References the index of the location where the next element will be pushed
