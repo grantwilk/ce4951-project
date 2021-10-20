@@ -205,7 +205,7 @@ static bool network_msg_queue_pop()
 /**
  * IRQ Handler for hb_timer
  */
-void TIMXXX_IRQHandler()
+void TIM4_IRQHandler()
 {
     static int byteIdx = 0; // A value 0 - 511
     static int bitIdx = 0; // A value 0 - 7
