@@ -126,7 +126,7 @@ bool network_msg_queue_is_full()
  */
 bool network_msg_queue_is_empty()
 {
-    return ( push_idx + 1) % MSG_QUEUE_SIZE == pop_idx;
+    return ( pop_idx + 1) % MSG_QUEUE_SIZE == push_idx;
 }
 
 
