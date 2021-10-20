@@ -212,13 +212,7 @@ void TIM4_IRQHandler()
 
     // Get the message index of the circular buffer
     int msg_idx;
-    if (pop_idx < 10)
-    {
-        msg_idx = pop_idx + 1;
-    }else
-    {
-        msg_idx = 0;
-    }
+    msg_idx = (pop_idx + 1) % MSG_QUEUE_SIZE;
 
     // Get the current state
     STATE_TYPE state = state_get();
@@ -238,6 +232,11 @@ void TIM4_IRQHandler()
             byteIdx = 0;
             bitIdx = 0;
             // Should always return True because when we call this method there is always a message present
+            bool status = network_msg_queue_pop();
+            if (!status)
+            {
+                ERROR_HANDLE_NON_FATAL(ERROR_CODE_NETWORK_MSG_POP_FAILURE)
+            }
             network_msg_queue_pop();
             // Output a 1 to PC11 - IDLE State
             GPIOC->ODR |= GPIO_ODR_OD11;
