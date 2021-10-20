@@ -75,7 +75,7 @@ ERROR_CODE network_init()
  *
  * @return  Error code
  */
-ERROR_CODE network_tx(void * buffer, size_t size)
+ERROR_CODE network_tx(uint8_t * buffer, size_t size)
 {
     // throw an error if the network is not initialized
     if (!network_is_init)
@@ -191,7 +191,7 @@ unsigned int network_msg_queue_count()
  * @param   [in]    size        The size of the input buffer
  */
 static void
-network_encode_manchester(void * manchester, void * buffer, size_t size)
+network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
 {
     // zero the manchester buffer
     memset(manchester, 0, size * 2);
@@ -224,7 +224,7 @@ network_encode_manchester(void * manchester, void * buffer, size_t size)
  *
  * @return  False if the message queue is full, true otherwise
  */
-static bool network_msg_queue_push(void * buffer, size_t size)
+static bool network_msg_queue_push(uint8_t * buffer, size_t size)
 {
     // return false if the queue is full
     if (network_msg_queue_is_full())
