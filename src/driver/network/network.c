@@ -7,6 +7,8 @@
 #include "state.h"
 #include "hb_timer.h"
 
+#define MIN(a,b) (((a)<(b))?(a):(b))
+
 #define MSG_QUEUE_SIZE                  (10)
 #define HALF_BIT_PERIOD_US              (500)
 
@@ -84,32 +86,59 @@ ERROR_CODE network_tx(void * buffer, size_t size)
         THROW_ERROR(ERROR_CODE_NETWORK_NOT_INITIALIZED);
     }
 
-    unsigned int availableMsgs = MSG_QUEUE_SIZE - network_msg_queue_count() - 1;
+    unsigned int availableMsgs = MSG_QUEUE_SIZE - network_msg_queue_count();
     if ((size % MAX_MESSAGE_SIZE) <= availableMsgs)
     {
         THROW_ERROR(ERROR_CODE_NETWORK_MSG_QUEUE_FULL);
     }
 
-    int queued_bytes = 0;
+    unsigned int queued_bytes = 0;
+    unsigned char manchester[MAX_MESSAGE_SIZE_MANCHESTER];
 
-    // if size > MAX_MESSAGE_SIZE, the buffer must be broken into chunks
-    while ((size - queued_bytes) > MAX_MESSAGE_SIZE)
+    // break buffer into chunks and queue
+    while (size - queued_bytes)
     {
-        if (!network_msg_queue_push( buffer + queued_bytes, MAX_MESSAGE_SIZE ))
+        unsigned int chunk_size = MIN(MAX_MESSAGE_SIZE, size - queued_bytes);
+
+        network_encode_manchester(
+            manchester,
+            buffer + queued_bytes,
+            chunk_size
+        );
+
+        if (!network_msg_queue_push(manchester, chunk_size * 2))
         {
             THROW_ERROR(ERROR_CODE_NETWORK_MSG_QUEUE_FULL);
         }
-        queued_bytes += MAX_MESSAGE_SIZE;
-    }
 
-    // after that, we can queue up the remaining bytes
-    if (!network_msg_queue_push( buffer + queued_bytes, size - queued_bytes ))
-    {
-        THROW_ERROR(ERROR_CODE_NETWORK_MSG_QUEUE_FULL);
+        queued_bytes += chunk_size;
     }
 
     // attempt to start a transmission
     ELEVATE_IF_ERROR(network_start_tx());
+
+    RETURN_NO_ERROR();
+}
+
+
+/**
+ * Signals the network component to begin transmitting messages from its
+ * internal message queue
+ *
+ * @return  Error code
+ */
+ERROR_CODE network_start_tx()
+{
+    // throw an error if the network is not initialized
+    if (!network_is_init)
+    {
+        THROW_ERROR(ERROR_CODE_NETWORK_NOT_INITIALIZED);
+    }
+
+    if (!network_msg_queue_is_empty() && (state_get() == IDLE))
+    {
+        ELEVATE_IF_ERROR(hb_timer_reset_and_start());
+    }
 
     RETURN_NO_ERROR();
 }
@@ -124,6 +153,7 @@ bool network_msg_queue_is_full()
 {
     return pop_idx == push_idx;
 }
+
 
 /**
  * Determines whether the network's message queue is full
@@ -156,26 +186,38 @@ unsigned int network_msg_queue_count()
 
 
 /**
- * Signals the network component to begin transmitting messages from its
- * internal message queue
+ * Encodes a buffer into Manchester encoding
  *
- * @return  Error code
+ * @param   [out]   manchester  The output Manchester encoded buffer (will be
+ *                              twice the size of the input buffer)
+ * @param   [in]    buffer      The input buffer to encode in Manchester
+ * @param   [in]    size        The size of the input buffer
  */
-ERROR_CODE network_start_tx()
+static void
+network_encode_manchester(void * manchester, void * buffer, size_t size)
 {
-    // throw an error if the network is not initialized
-    if (!network_is_init)
-    {
-        THROW_ERROR(ERROR_CODE_NETWORK_NOT_INITIALIZED);
-    }
+    // zero the manchester buffer
+    memset(manchester, 0, size * 2);
 
-    if (!network_msg_queue_is_empty() && (state_get() == IDLE))
+    // encoding loop
+    for (unsigned int byteIdx = 0; byteIdx < size; byteIdx++)
     {
-        ELEVATE_IF_ERROR(hb_timer_reset_and_start());
-    }
+        unsigned char inputByteValue = ((unsigned char *) buffer)[byteIdx];
+        unsigned char * manchesterBytePtr =
+            &(((unsigned char *) manchester)[byteIdx * 2]);
 
-    RETURN_NO_ERROR();
+        for (unsigned int bitIdx = 0; bitIdx < 7; bitIdx++)
+        {
+            bool inputBitValue = (inputByteValue >> ( 7 - bitIdx)) & 0x01;
+
+            unsigned int manchesterBitIdx = (bitIdx * 2) % 8;
+            unsigned int manchesterBitsValue = inputBitValue ? 0b01 : 0b10;
+
+            *manchesterBytePtr |= manchesterBitsValue << (7 - manchesterBitIdx);
+        }
+    }
 }
+
 
 /**
  * Pushes an element into this network's circular queue
@@ -203,6 +245,7 @@ static bool network_msg_queue_push(void * buffer, size_t size)
     return true;
 }
 
+
 /**
  * Pops an element from this network's circular queue
  *
@@ -219,6 +262,7 @@ static bool network_msg_queue_pop()
     pop_idx = (pop_idx + 1) % MSG_QUEUE_SIZE;
     return true;
 }
+
 
 //todo implement IRQHandler for hb_timer
 void TIMXXX_IRQHandler()
