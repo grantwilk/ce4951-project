@@ -84,6 +84,12 @@ ERROR_CODE network_tx(void * buffer, size_t size)
         THROW_ERROR(ERROR_CODE_NETWORK_NOT_INITIALIZED);
     }
 
+    unsigned int availableMsgs = MSG_QUEUE_SIZE - network_msg_queue_count() - 1;
+    if ((size % MAX_MESSAGE_SIZE) <= availableMsgs)
+    {
+        THROW_ERROR(ERROR_CODE_NETWORK_MSG_QUEUE_FULL);
+    }
+
     int queued_bytes = 0;
 
     // if size > MAX_MESSAGE_SIZE, the buffer must be broken into chunks
@@ -126,7 +132,26 @@ bool network_msg_queue_is_full()
  */
 bool network_msg_queue_is_empty()
 {
-    return ( pop_idx + 1) % MSG_QUEUE_SIZE == push_idx;
+    return (pop_idx + 1) % MSG_QUEUE_SIZE == push_idx;
+}
+
+
+/**
+ * Gets the number of messages in the message queue
+ *
+ * @return  The number of messages in the message queue
+ */
+unsigned int network_msg_queue_count()
+{
+    if (push_idx > pop_idx)
+    {
+        return push_idx - pop_idx - 1;
+    }
+    else
+    {
+        return (push_idx + MSG_QUEUE_SIZE) - pop_idx - 1;
+    }
+
 }
 
 
