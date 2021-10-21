@@ -12,6 +12,7 @@
 
 # include <stdio.h>
 # include "main.h"
+#include <string.h>
 # include "sysclock.h"
 # include "uio.h"
 
@@ -76,6 +77,7 @@ int main( void )
         fgets(str, 256, stdin);
         fflush(stdin);
         uprintf("RECEIVED: %s\n", str);
+        network_tx(str, strlen(str));
     }
 
 
