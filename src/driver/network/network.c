@@ -213,25 +213,57 @@ network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
     // encoding loop
     for (unsigned int byteIdx = 0; byteIdx < size; byteIdx++)
     {
-        unsigned char inputByteValue = ((unsigned char *) buffer)[byteIdx];
-        unsigned char * manchesterBytePtr =
-            &(((unsigned char *) manchester)[byteIdx * 2]);
+        uint8_t inputByteValue = buffer[byteIdx];
+        uint8_t * manchesterBytePtr = &(manchester[byteIdx * 2]);
 
-        for (unsigned int bitIdx = 0; bitIdx < 7; bitIdx++)
+        for (unsigned int bitIdx = 0; bitIdx < 8; bitIdx++)
         {
-            bool inputBitValue = (inputByteValue >> ( 7 - bitIdx)) & 0x01;
+            bool inputBitValue = (inputByteValue >> (7 - bitIdx)) & 0x01;
 
             unsigned int manchesterBitIdx = (bitIdx * 2) % 8;
             unsigned int manchesterBitsValue = inputBitValue ? 0b01 : 0b10;
 
-            if ((bitIdx * 2) == 8)
+            if (bitIdx >= 4)
             {
-                manchesterBytePtr += 1;
+                manchesterBytePtr[1] |= manchesterBitsValue << (6 - manchesterBitIdx);
+            }
+            else
+            {
+                manchesterBytePtr[0] |= manchesterBitsValue << (6 - manchesterBitIdx);
             }
 
-            *manchesterBytePtr |= manchesterBitsValue << (7 - manchesterBitIdx);
         }
     }
+
+    uprintf("BUFFER:");
+    for (int i = 0; i < size; i++)
+    {
+        if (i % 64 == 0)
+        {
+            uprintf("\n");
+        }
+        else if (i % 2 == 0)
+        {
+            uprintf(" ");
+        }
+        uprintf("%02X", buffer[i]);
+    }
+    uprintf("\n\n");
+
+    uprintf("MANCHESTER:");
+    for (int i = 0; i < size * 2; i++)
+    {
+        if (i % 64 == 0)
+        {
+            uprintf("\n");
+        }
+        else if (i % 2 == 0)
+        {
+            uprintf(" ");
+        }
+        uprintf("%02X", manchester[i]);
+    }
+    uprintf("\n\n");
 }
 
 

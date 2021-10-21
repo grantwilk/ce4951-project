@@ -71,6 +71,7 @@ int main( void )
     // set initial state to IDLE
     ERROR_HANDLE_FATAL( state_set( IDLE ) );
 
+
     // UART user interface loop
     char uartRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
     while(1)
