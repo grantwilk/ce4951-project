@@ -74,6 +74,7 @@ int main( void )
 
     // UART user interface loop
     char uartRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
+    int length = 0;
 
     // TODO: These line is a temporary fix. The first transmission after reset
     //       causes a collision. By transmitting one byte at startup, we collide
@@ -86,8 +87,22 @@ int main( void )
         uprintf(">> ");
         fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
         fflush(stdin);
+        uprintf("RECEIVED: %s", uartRxBuffer);
+        if(0 == strcmp(uartRxBuffer,"/zeros\n")) {
+            memset(uartRxBuffer, 0x00, 8);
+            length = 8;
+        }
+        else if (0 == strcmp(uartRxBuffer, "/ones\n")) {
+            memset(uartRxBuffer, 0xFF, 8);
+            length = 8;
+        }
+        else
+        {
+            length = (int) strlen(uartRxBuffer) - 1);
+        }
+        //uprintf("%d", strlen(str)-1);
         uprintf("Transmitting Message: %s\n", uartRxBuffer);
-        ERROR_HANDLE_FATAL(network_tx((uint8_t *) uartRxBuffer, strlen(uartRxBuffer) - 1));
+        ERROR_HANDLE_FATAL(network_tx((uint8_t *) uartRxBuffer, length);
     }
 }
 
