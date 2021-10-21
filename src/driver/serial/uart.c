@@ -14,6 +14,8 @@
 # include <stm32f446xx.h>
 # include "error.h"
 # include "uart.h"
+# include "uio.h"
+# include "circular_queue.h"
 
 
 /* ------------------------------------------ Defines ------------------------------------------- */
@@ -45,6 +47,8 @@
  */
 static bool uartIsInit = false;
 
+static circular_queue input_buffer;
+
 
 /* ---------------------------------- Constructors / Destructors -------------------------------- */
 
@@ -68,19 +72,25 @@ uartInit
 	    THROW_ERROR( ERROR_CODE_DRIVER_SERIAL_UART_ALREADY_INITIALIZED );
     }
 
+    // circular queue
+    input_buffer = cq_init();
+
     // enable USART module (USART2), timeout timer (TIM7), and GPIO port (GPIOA) in RCC
     RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
 	RCC->APB1ENR |= RCC_APB1ENR_TIM7EN;
 
     // configure GPIO pins (GPIOA)
+    GPIOA->PUPDR |= ( 0b01 << GPIO_PUPDR_PUPD2_Pos ) |
+                    ( 0b01 << GPIO_PUPDR_PUPD3_Pos );
+
     GPIOA->MODER &= ~( GPIO_MODER_MODER2 | GPIO_MODER_MODER3 );
-    GPIOA->MODER |=  ( 0x02U << GPIO_MODER_MODER2_Pos ) |
-                     ( 0x02U << GPIO_MODER_MODER3_Pos );
+    GPIOA->MODER |=  ( 0b10 << GPIO_MODER_MODER2_Pos ) |
+                     ( 0b10 << GPIO_MODER_MODER3_Pos );
 
     GPIOA->AFR[0] &= ~( GPIO_AFRL_AFSEL2 | GPIO_AFRL_AFSEL3 );
     GPIOA->AFR[0] |= ( 0x07U << GPIO_AFRL_AFSEL2_Pos ) |
-                     ( 0x08U << GPIO_AFRL_AFSEL3_Pos );
+                     ( 0x07U << GPIO_AFRL_AFSEL3_Pos );
 
     // configure timeout timer (TIM7)
     TIM7->CR1 |= TIM_CR1_URS;
@@ -94,6 +104,13 @@ uartInit
     USART2->CR1 |= USART_CR1_RE;
     USART2->CR1 |= USART_CR1_TE;
     USART2->CR1 |= USART_CR1_UE;
+
+    // enable interrupts
+    USART2->CR1 |= USART_CR1_RXNEIE;
+    NVIC->ISER[1] |= (1 << 6);
+
+    // set buffer source
+    setvbuf(stdout, NULL, _IONBF, 0);
 
     // set initialization flag
     uartIsInit = true;
@@ -261,6 +278,56 @@ uartRxByte
     *rxByte = USART2->DR;
 
     RETURN_NO_ERROR();
+}
+
+/* ------------------------------------- Override Functions ------------------------------------- */
+
+
+/**
+ * Reads a string from the UART's input buffer
+ * @param file - not implemented (ignored)
+ * @param ptr - where the read data should be put
+ * @param len - the number of characters to read
+ * @return the number of characters read
+ */
+int _read(int file, char * ptr, int len) {
+
+    // wait until the input buffer receives some data
+    while (cq_isempty(&input_buffer));
+
+    int char_count = 0;
+
+    // pull from the circular queue until it is empty
+    while (!cq_isempty(&input_buffer)) {
+        char_count++;
+        *ptr = cq_pull(&input_buffer);
+        ptr++;
+    }
+
+    if (*ptr == '\r') *ptr = '\n';
+
+    return char_count;
+
+}
+
+
+/* ---------------------------------------- IRQ Handlers ---------------------------------------- */
+
+
+/**
+ * USART2 interrupt request handler
+ */
+void USART2_IRQHandler(void) {
+    if ((USART2->SR & USART_SR_RXNE) && !cq_isfull(&input_buffer)) {
+        // read the RDR
+        char c = USART2->DR;
+
+        // push the char in the RDR into the input buffer
+        cq_push(&input_buffer, c);
+
+        // echo the character to the output buffer
+        ERROR_HANDLE_NON_FATAL(uartTxByte(c, 1000));
+    }
 }
 
 

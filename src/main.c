@@ -10,7 +10,8 @@
 /* ------------------------------------------ Includes ------------------------------------------ */
 
 
-#include <string.h>
+# include <stdio.h>
+# include <string.h>
 # include "main.h"
 # include "sysclock.h"
 # include "uio.h"
@@ -25,7 +26,8 @@
 /* ------------------------------------------ Defines ------------------------------------------- */
 
 
-# define CE4981_NETWORK_TIMEOUT_PERIOD_US  ( 1100U )
+# define CE4981_NETWORK_TIMEOUT_PERIOD_US   ( 1100U )
+# define CE4981_NETWORK_MAX_MESSAGE_SIZE    ( 256 )
 
 
 /* ----------------------------------------- Functions ------------------------------------------ */
@@ -69,13 +71,16 @@ int main( void )
     // set initial state to IDLE
     ERROR_HANDLE_FATAL( state_set( IDLE ) );
 
-    char * txBuf = "This is my tx buffer!";
-
-    ERROR_HANDLE_FATAL( network_tx((void * ) txBuf, strlen(txBuf)));
-
-    // enter endless loop
-    //todo implement UART program, reading lines of text from user and sending via network_tx
-    while(1);
+    // UART user interface loop
+    char uartRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
+    while(1)
+    {
+        uprintf(">> ");
+        fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
+        fflush(stdin);
+        uprintf("Transmitting Message: %s\n", uartRxBuffer);
+        network_tx(uartRxBuffer, strlen(uartRxBuffer) - 1);
+    }
 }
 
 
