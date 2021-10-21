@@ -320,7 +320,7 @@ void TIM4_IRQHandler()
                 {
                     ERROR_HANDLE_NON_FATAL(ERROR_CODE_NETWORK_MSG_POP_FAILURE)
                 }
-                network_msg_queue_pop();
+
                 // Output a 1 to PC11 - IDLE State
                 GPIOC->ODR |= GPIO_ODR_OD11;
 
