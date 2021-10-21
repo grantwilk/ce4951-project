@@ -69,6 +69,10 @@ int main( void )
     // set initial state to IDLE
     ERROR_HANDLE_FATAL( state_set( IDLE ) );
 
+    char * txBuf = "This is my tx buffer!";
+
+    ERROR_HANDLE_FATAL( network_tx((void * ) txBuf, strlen(txBuf)));
+
     // enter endless loop
     //todo implement UART program, reading lines of text from user and sending via network_tx
     while(1);
