@@ -70,13 +70,13 @@ int main( void )
     // set initial state to IDLE
     // ERROR_HANDLE_FATAL( state_set( IDLE ) );
 
-
+    char str[256];
     while(1)
     {
-        char str[256];
+
         fgets(str, 256, stdin);
         fflush(stdin);
-        uprintf("RECEIVED: %s\n", str);
+        uprintf("RECEIVED: %s", str);
         //uprintf("%d", strlen(str)-1);
         network_tx(str, strlen(str)-1);
     }
