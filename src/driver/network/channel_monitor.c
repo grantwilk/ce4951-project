@@ -34,7 +34,6 @@ ERROR_CODE channel_monitor_init()
 //Handles channel monitor input interrupts
 void EXTI15_10_IRQHandler()
 {
-    __asm__("CPSID i"); //disable interrupts
     if (EXTI->PR & EXTI_PR_PR12)
     {
         bool isHigh = GPIOC->IDR & GPIO_IDR_ID12;
@@ -53,5 +52,4 @@ void EXTI15_10_IRQHandler()
             state_set(BUSY);
         }
     }
-    __asm__("CPSIE i"); //enable interrupts
 }

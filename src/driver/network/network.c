@@ -12,8 +12,12 @@
 #define MSG_QUEUE_SIZE                  (10)
 #define HALF_BIT_PERIOD_US              (500)
 
-#define MAX_MESSAGE_SIZE                (256)
+#define MAX_MESSAGE_SIZE                (255)
+#define MAX_FRAME_SIZE                  (MAX_MESSAGE_SIZE + sizeof(msg_header_t) + sizeof(msg_trailer_t))
+
 #define MAX_MESSAGE_SIZE_MANCHESTER     (MAX_MESSAGE_SIZE * 2)
+
+#define LOCAL_MACHINE_ADDRESS           (0x23) //TODO changeme if needed
 
 /**
  * Initialization flag
@@ -28,6 +32,38 @@ typedef struct
     char buffer[MAX_MESSAGE_SIZE_MANCHESTER];
     size_t size;
 } msg_queue_node_t;
+
+
+
+
+typedef struct
+{
+    uint8_t preamble;
+    uint8_t version ;
+    uint8_t source;
+    uint8_t destination;
+    uint8_t length;
+    uint8_t crc_flag;
+} msg_header_t;
+
+typedef struct
+{
+    uint8_t crc8_fcs;
+} msg_trailer_t;
+
+
+static const msg_header_t defaultTxHeader = {0x55, 0x1, LOCAL_MACHINE_ADDRESS, 0x0, 0x0, 0x01};
+
+/**
+ *
+ */
+typedef struct
+{
+    msg_header_t header;
+    char * message;
+    msg_trailer_t trailer;
+} msg_frame_t;
+
 
 /**
  * Network circular message queue.
@@ -104,23 +140,31 @@ ERROR_CODE network_tx(uint8_t * buffer, size_t size)
     unsigned int queued_bytes = 0;
     unsigned char manchester[MAX_MESSAGE_SIZE_MANCHESTER];
 
+
+    msg_frame_t frame;
+    frame.header = defaultTxHeader;
+
+    //TODO set dest IP
+    frame.header.destination = 0x00;
+
     // break buffer into chunks and queue
     while (size - queued_bytes)
     {
-        unsigned int chunk_size = MIN(MAX_MESSAGE_SIZE, size - queued_bytes);
+        frame.message = buffer + queued_bytes;
 
-        network_encode_manchester(
-            manchester,
-            buffer + queued_bytes,
-            chunk_size
-        );
+        //TODO set trailer with big brain CRC algorithm
+        frame.trailer.crc8_fcs = 0x00;
 
-        if (!network_msg_queue_push(manchester, chunk_size * 2))
+        frame.header.length = MIN(MAX_MESSAGE_SIZE, size - queued_bytes);
+
+        network_encode_frame_manchester(manchester, &frame);
+
+        if (!network_msg_queue_push(manchester, (sizeof(msg_header_t) + frame.header.length + sizeof(uint8_t)) * 2))
         {
             THROW_ERROR(ERROR_CODE_NETWORK_MSG_QUEUE_FULL);
         }
 
-        queued_bytes += chunk_size;
+        queued_bytes += frame.header.length;
     }
 
     // attempt to start a transmission
@@ -193,6 +237,51 @@ unsigned int network_msg_queue_count()
 
 }
 
+static void network_decode_manchester_header(msg_header_t * header, uint8_t * manchester)
+{
+    network_decode_manchester(header, manchester, sizeof(msg_header_t));
+}
+
+static void network_encode_frame_manchester(uint8_t manchester, msg_frame_t * frame)
+{
+    network_encode_manchester(manchester, &(frame->header), sizeof(msg_header_t));
+    network_encode_manchester(manchester + sizeof(msg_header_t), frame->message, frame->header.length);
+    network_encode_manchester(manchester + sizeof(msg_header_t) + frame->header.length, &(frame->trailer), sizeof(msg_trailer_t));
+}
+
+//size_t size in bytes
+static ERROR_CODE network_decode_manchester(uint8_t * buffer, uint8_t * manchester, size_t size)
+{
+    // zero the buffer
+    memset(buffer, 0, size);
+
+    // decoding loop
+    for (unsigned int byteIdx = 0; byteIdx < size; byteIdx++)
+    {
+        uint8_t * bytePtr = buffer[byteIdx];
+
+        for (unsigned int bitIdx = 0; bitIdx <8; bitIdx++)
+        {
+            unsigned int manchesterBitIdx = (bitIdx * 2) % 8;
+            unsigned int manchesterValue = (manchester[manchesterBitIdx > 4 ? byteIdx : byteIdx + 1] >> (6 - manchesterBitIdx)) & 0b11;
+
+            bool bitValue;
+            
+            if (manchesterValue == 0b01){
+                bitValue = true;
+            }
+            else if (manchesterValue == 0b10)
+            {
+                bitValue = false;
+            }
+            else {
+                THROW_ERROR(0); //todo error code, invalid manchester
+            }
+            
+            *bytePtr |= manchesterValue << (7 - manchesterBitIdx);
+        }
+    }
+}
 
 /**
  * Encodes a buffer into Manchester encoding
@@ -308,7 +397,6 @@ static bool network_msg_queue_pop()
     pop_idx = (pop_idx + 1) % MSG_QUEUE_SIZE;
     return true;
 }
-
 
 /**
  * IRQ Handler for hb_timer
