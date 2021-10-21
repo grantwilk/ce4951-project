@@ -23,6 +23,7 @@
 # include "state.h"
 
 
+
 /* ------------------------------------------ Defines ------------------------------------------- */
 
 
@@ -59,8 +60,8 @@ int main( void )
     uprintf("/* ---------- DEVICE RESET ---------- */\n\n");
 
     // start network
-    ERROR_HANDLE_FATAL( channel_monitor_init() );
     ERROR_HANDLE_FATAL( network_init() );
+    ERROR_HANDLE_FATAL( channel_monitor_init() );
 
     // start timeout timer
     ERROR_HANDLE_FATAL( timeout_init( CE4981_NETWORK_TIMEOUT_PERIOD_US ) );
@@ -71,9 +72,15 @@ int main( void )
     // set initial state to IDLE
     ERROR_HANDLE_FATAL( state_set( IDLE ) );
 
-
     // UART user interface loop
     char uartRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
+
+    // TODO: These line is a temporary fix. The first transmission after reset
+    //       causes a collision. By transmitting one byte at startup, we collide
+    //       on reset, which is more OK. Ideally this doesn't happen though.
+    // GPIOC->ODR &= ~(GPIO_ODR_OD11);
+    // GPIOC->ODR |= GPIO_ODR_OD11;
+
     while(1)
     {
         uprintf(">> ");

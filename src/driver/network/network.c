@@ -1,13 +1,11 @@
 #include <stdbool.h>
 #include <uio.h>
 #include <memory.h>
-#include <math.h>
 #include "stm32f446xx.h"
 
 #include "network.h"
 #include "state.h"
 #include "hb_timer.h"
-#include "state.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
@@ -67,11 +65,11 @@ ERROR_CODE network_init()
     RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN; //SYSCFGEN
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;  //GPIOCEN
 
-    GPIOC->MODER &= ~GPIO_MODER_MODER11;
-    GPIOC->MODER |= 0b01 << GPIO_MODER_MODER11_Pos; //Set PC11 as output
-
     // set GPIOC high on start
     GPIOC->ODR |= GPIO_ODR_OD11;
+
+    GPIOC->MODER &= ~GPIO_MODER_MODER11;
+    GPIOC->MODER |= 0b01 << GPIO_MODER_MODER11_Pos; //Set PC11 as output
 
     network_is_init = true;
 
@@ -235,35 +233,35 @@ network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
         }
     }
 
-    uprintf("BUFFER:");
-    for (int i = 0; i < size; i++)
-    {
-        if (i % 64 == 0)
-        {
-            uprintf("\n");
-        }
-        else if (i % 2 == 0)
-        {
-            uprintf(" ");
-        }
-        uprintf("%02X", buffer[i]);
-    }
-    uprintf("\n\n");
+    // uprintf("BUFFER:");
+    // for (int i = 0; i < size; i++)
+    // {
+    //     if (i % 64 == 0)
+    //     {
+    //         uprintf("\n");
+    //     }
+    //     else if (i % 2 == 0)
+    //     {
+    //         uprintf(" ");
+    //     }
+    //     uprintf("%02X", buffer[i]);
+    // }
+    // uprintf("\n\n");
 
-    uprintf("MANCHESTER:");
-    for (int i = 0; i < size * 2; i++)
-    {
-        if (i % 64 == 0)
-        {
-            uprintf("\n");
-        }
-        else if (i % 2 == 0)
-        {
-            uprintf(" ");
-        }
-        uprintf("%02X", manchester[i]);
-    }
-    uprintf("\n\n");
+    // uprintf("MANCHESTER:");
+    // for (int i = 0; i < size * 2; i++)
+    // {
+    //     if (i % 64 == 0)
+    //     {
+    //         uprintf("\n");
+    //     }
+    //     else if (i % 2 == 0)
+    //     {
+    //         uprintf(" ");
+    //     }
+    //     uprintf("%02X", manchester[i]);
+    // }
+    // uprintf("\n\n");
 }
 
 
@@ -285,7 +283,7 @@ static bool network_msg_queue_push(uint8_t * buffer, size_t size)
 
     // it is important that we make a copy of the buffer in the queue,
     // otherwise we risk modifying the data before it can be transmitted
-    memcpy( msg_queue[push_idx].buffer, buffer, size);
+    memcpy(msg_queue[push_idx].buffer, buffer, size);
     msg_queue[push_idx].size = size;
 
     push_idx = ( push_idx + 1) % MSG_QUEUE_SIZE;
@@ -334,7 +332,6 @@ void TIM4_IRQHandler()
 
         if(state != COLLISION)
         {
-            // Reset the timer
             hb_timer_reset_and_start();
 
             if(byteIdx == msg_queue[msg_idx].size)
