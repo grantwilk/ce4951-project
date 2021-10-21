@@ -40,7 +40,7 @@ ERROR_CODE hb_timer_init(uint16_t us)
     // throw an error if the hb timer is already initialized
     if ( hb_timer_is_init )
     {
-        THROW_ERROR( ERROR_CODE_DRIVER_TIMER_TIMEOUT_ALREADY_INITIALIZED );
+        THROW_ERROR( ERROR_CODE_DRIVER_TIMER_HB_ALREADY_INITIALIZED );
     }
 
     // set hb timer init flag
@@ -68,7 +68,7 @@ ERROR_CODE hb_timer_reset_and_start()
     // throw an error if the hb timer is not initialized
     if ( !hb_timer_is_init )
     {
-        THROW_ERROR( ERROR_CODE_DRIVER_TIMER_TIMEOUT_NOT_INITIALIZED );
+        THROW_ERROR( ERROR_CODE_DRIVER_TIMER_HB_NOT_INITIALIZED );
     }
 
     TIM4->CNT = 0;
@@ -87,7 +87,7 @@ ERROR_CODE hb_timer_stop()
     // throw an error if the hb timer is not initialized
     if ( !hb_timer_is_init )
     {
-        THROW_ERROR( ERROR_CODE_DRIVER_TIMER_TIMEOUT_NOT_INITIALIZED );
+        THROW_ERROR( ERROR_CODE_DRIVER_TIMER_HB_NOT_INITIALIZED );
     }
 
     TIM4->CR1 &= ~( TIM_CR1_CEN );
@@ -101,7 +101,7 @@ ERROR_CODE hb_timer_set_timeout(uint16_t us)
     // throw an error if the hb timer is not initialized
     if ( !hb_timer_is_init )
     {
-        THROW_ERROR( ERROR_CODE_DRIVER_TIMER_TIMEOUT_NOT_INITIALIZED );
+        THROW_ERROR( ERROR_CODE_DRIVER_TIMER_HB_NOT_INITIALIZED );
     }
 
     TIM4->ARR = us;
