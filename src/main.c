@@ -98,11 +98,11 @@ int main( void )
         }
         else
         {
-            length = (int) strlen(uartRxBuffer) - 1);
+            length = (int) strlen(uartRxBuffer) - 1;
         }
         //uprintf("%d", strlen(str)-1);
         uprintf("Transmitting Message: %s\n", uartRxBuffer);
-        ERROR_HANDLE_FATAL(network_tx((uint8_t *) uartRxBuffer, length);
+        ERROR_HANDLE_FATAL(network_tx((uint8_t *) uartRxBuffer, length));
     }
 }
 
