@@ -226,9 +226,6 @@ network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
             *manchesterBytePtr |= manchesterBitsValue << (7 - manchesterBitIdx);
         }
     }
-
-    pop_idx = (pop_idx + 1) % MSG_QUEUE_SIZE;
-    return true;
 }
 
 
