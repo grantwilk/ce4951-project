@@ -74,13 +74,13 @@ int main( void )
 
     // UART user interface loop
     char uartRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
-    int length = 0;
+    int rxBufferSize = 0;
 
     // TODO: These line is a temporary fix. The first transmission after reset
     //       causes a collision. By transmitting one byte at startup, we collide
     //       on reset, which is more OK. Ideally this doesn't happen though.
-    // GPIOC->ODR &= ~(GPIO_ODR_OD11);
-    // GPIOC->ODR |= GPIO_ODR_OD11;
+    GPIOC->ODR &= ~(GPIO_ODR_OD11);
+    GPIOC->ODR |= GPIO_ODR_OD11;
 
     while(1)
     {
@@ -88,21 +88,20 @@ int main( void )
         fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
         fflush(stdin);
         uprintf("RECEIVED: %s", uartRxBuffer);
-        if(0 == strcmp(uartRxBuffer,"/zeros\n")) {
+        if(!strcmp(uartRxBuffer,"/zeros\n")) {
             memset(uartRxBuffer, 0x00, 8);
-            length = 8;
+            rxBufferSize = 8;
         }
-        else if (0 == strcmp(uartRxBuffer, "/ones\n")) {
+        else if (!strcmp(uartRxBuffer, "/ones\n")) {
             memset(uartRxBuffer, 0xFF, 8);
-            length = 8;
+            rxBufferSize = 8;
         }
         else
         {
-            length = (int) strlen(uartRxBuffer) - 1;
+            rxBufferSize = (int) strlen(uartRxBuffer) - 1;
         }
-        //uprintf("%d", strlen(str)-1);
         uprintf("Transmitting Message: %s\n", uartRxBuffer);
-        ERROR_HANDLE_FATAL(network_tx((uint8_t *) uartRxBuffer, length));
+        ERROR_HANDLE_FATAL(network_tx((uint8_t *) uartRxBuffer, rxBufferSize));
     }
 }
 
