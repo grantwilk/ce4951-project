@@ -6,6 +6,7 @@
 #include "network.h"
 #include "state.h"
 #include "hb_timer.h"
+#include "state.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
@@ -285,74 +286,78 @@ void TIM4_IRQHandler()
     static int byteIdx = 0; // A value 0 - 511
     static int bitIdx = 0; // A value 0 - 7
 
-    // Get the message index of the circular buffer
-    int msg_idx;
-    msg_idx = (pop_idx + 1) % MSG_QUEUE_SIZE;
-
-    // Get the current state
-    STATE_TYPE state = state_get();
-
-    if(state != COLLISION)
+    if ( TIM4->SR & TIM_SR_UIF )
     {
-        // Reset the timer
-        hb_timer_reset_and_start();
+        // clear update interrupt
+        TIM4->SR &= ~( TIM_SR_UIF );
 
-        if(byteIdx == msg_queue[msg_idx].size)
+        // Get the message index of the circular buffer
+        int msg_idx = (pop_idx + 1) % MSG_QUEUE_SIZE;
+
+        // Get the current state
+        STATE_TYPE state = state_get();
+
+        if(state != COLLISION)
         {
-            // The transmission of the message is complete
+            // Reset the timer
+            hb_timer_reset_and_start();
 
-            // Stop the timer
-            hb_timer_stop();
-            // Set the byteIdx and bitIdx to default
-            byteIdx = 0;
-            bitIdx = 0;
-            // Should always return True because when we call this method there is always a message present
-            bool status = network_msg_queue_pop();
-            if (!status)
+            if(byteIdx == msg_queue[msg_idx].size)
             {
-                ERROR_HANDLE_NON_FATAL(ERROR_CODE_NETWORK_MSG_POP_FAILURE)
+                // The transmission of the message is complete
+
+                // Stop the timer
+                hb_timer_stop();
+                // Set the byteIdx and bitIdx to default
+                byteIdx = 0;
+                bitIdx = 0;
+                // Should always return True because when we call this method there is always a message present
+                bool status = network_msg_queue_pop();
+                if (!status)
+                {
+                    ERROR_HANDLE_NON_FATAL(ERROR_CODE_NETWORK_MSG_POP_FAILURE)
+                }
+                network_msg_queue_pop();
+                // Output a 1 to PC11 - IDLE State
+                GPIOC->ODR |= GPIO_ODR_OD11;
+
+            } else
+            {
+                // Get the next bit from the message buffer
+                bool bit = msg_queue[msg_idx].buffer[byteIdx] >> (7 - bitIdx) & 0b01;
+
+                if(bit == 1)
+                {
+                    // Output a 1 to PC11
+                    GPIOC->ODR |= GPIO_ODR_OD11;
+                }else {
+                    // Output a 0 to PC11
+                    GPIOC->ODR &= ~GPIO_ODR_OD11;
+                }
+
+                // If bit index is less than 7 increment
+                if(bitIdx < 7)
+                {
+                    // Increment the bit index
+                    bitIdx++;
+                }else
+                {
+                    // Increment the byte index
+                    byteIdx++;
+                    // Set the bit index back to 0
+                    bitIdx = 0;
+                }
             }
-            network_msg_queue_pop();
-            // Output a 1 to PC11 - IDLE State
-            GPIOC->ODR |= GPIO_ODR_OD11;
 
         } else
         {
-            // Get the next bit from the message buffer
-            bool bit = msg_queue[msg_idx].buffer[byteIdx] >> (7 - bitIdx) & 0b01;
-
-            if(bit == 1)
-            {
-                // Output a 1 to PC11
-                GPIOC->ODR |= GPIO_ODR_OD11;
-            }else {
-                // Output a 0 to PC11
-                GPIOC->ODR &= ~GPIO_ODR_OD11;
-            }
-
-            // If bit index is less than 7 increment
-            if(bitIdx < 7)
-            {
-                // Increment the bit index
-                bitIdx++;
-            }else
-            {
-                // Increment the byte index
-                byteIdx++;
-                // Set the bit index back to 0
-                bitIdx = 0;
-            }
+            // Stop the timer we are in COLLISION State
+            hb_timer_stop();
+            // Reset Transmission of the data
+            byteIdx = 0;
+            bitIdx = 0;
+            // Output a 1 to PC11
+            GPIOC->ODR |= GPIO_ODR_OD11;
         }
-
-    } else
-    {
-        // Stop the timer we are in COLLISION State
-        hb_timer_stop();
-        // Reset Transmission of the data
-        byteIdx = 0;
-        bitIdx = 0;
-        // Output a 1 to PC11
-        GPIOC->ODR |= GPIO_ODR_OD11;
     }
-
 }
