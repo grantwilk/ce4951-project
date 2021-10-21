@@ -215,7 +215,7 @@ ERROR_CODE timeout_set_timeout( uint16_t us )
  */
 void TIM3_IRQHandler()
 {
-    if ( TIM3->SR && TIM_SR_UIF )
+    if ( TIM3->SR & TIM_SR_UIF )
     {
         // clear update interrupt
         TIM3->SR &= ~( TIM_SR_UIF );

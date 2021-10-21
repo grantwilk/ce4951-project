@@ -44,8 +44,15 @@ typedef enum
     ERROR_CODE_DRIVER_LEDS_ALREADY_INITIALIZED,                 // 0x0E
 
     ERROR_CODE_SET_UNKNOWN_STATE,                               // 0x0F
+
+    ERROR_CODE_NETWORK_NOT_INITIALIZED,                         // 0x10
+    ERROR_CODE_NETWORK_ALREADY_INITIALIZED,                     // 0x11
+    ERROR_CODE_NETWORK_MSG_QUEUE_FULL,                          // 0x12
+    ERROR_CODE_NETWORK_MSG_QUEUE_EMPTY,                          // 0x13
+    ERROR_CODE_NETWORK_MSG_POP_FAILURE,                          // 0x14
     
-    ERROR_CODE_NETWORK_TX_FULL                                  // 0x10
+    ERROR_CODE_DRIVER_TIMER_HB_NOT_INITIALIZED,                 // 0x15
+    ERROR_CODE_DRIVER_TIMER_HB_ALREADY_INITIALIZED              // 0x16
 
 } ERROR_CODE;
 

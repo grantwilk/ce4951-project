@@ -11,8 +11,8 @@
 
 
 # include <stdio.h>
+# include <string.h>
 # include "main.h"
-#include <string.h>
 # include "sysclock.h"
 # include "uio.h"
 
