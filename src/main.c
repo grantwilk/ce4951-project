@@ -10,6 +10,7 @@
 /* ------------------------------------------ Includes ------------------------------------------ */
 
 
+#include <string.h>
 # include "main.h"
 # include "sysclock.h"
 # include "uio.h"
@@ -18,7 +19,7 @@
 # include "network.h"
 # include "channel_monitor.h"
 # include "timeout.h"
-#include "state.h"
+# include "state.h"
 
 
 /* ------------------------------------------ Defines ------------------------------------------- */
@@ -67,6 +68,10 @@ int main( void )
 
     // set initial state to IDLE
     ERROR_HANDLE_FATAL( state_set( IDLE ) );
+
+    char * txBuf = "This is my tx buffer!";
+
+    ERROR_HANDLE_FATAL( network_tx((void * ) txBuf, strlen(txBuf)));
 
     // enter endless loop
     //todo implement UART program, reading lines of text from user and sending via network_tx
