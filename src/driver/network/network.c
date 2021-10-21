@@ -126,7 +126,6 @@ ERROR_CODE network_tx(uint8_t * buffer, size_t size)
 
 
 /**
-
  * Signals the network component to begin transmitting messages from its
  * internal message queue
  *
