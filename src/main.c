@@ -77,7 +77,8 @@ int main( void )
         fgets(str, 256, stdin);
         fflush(stdin);
         uprintf("RECEIVED: %s\n", str);
-        network_tx(str, strlen(str));
+        //uprintf("%d", strlen(str)-1);
+        network_tx(str, strlen(str)-1);
     }
 
 
