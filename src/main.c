@@ -79,7 +79,7 @@ int main( void )
         fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
         fflush(stdin);
         uprintf("Transmitting Message: %s\n", uartRxBuffer);
-        network_tx((uint8_t *) uartRxBuffer, strlen(uartRxBuffer) - 1);
+        ERROR_HANDLE_FATAL(network_tx((uint8_t *) uartRxBuffer, strlen(uartRxBuffer) - 1));
     }
 }
 

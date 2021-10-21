@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <uio.h>
 #include <memory.h>
+#include <math.h>
 #include "stm32f446xx.h"
 
 #include "network.h"
@@ -67,7 +68,10 @@ ERROR_CODE network_init()
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;  //GPIOCEN
 
     GPIOC->MODER &= ~GPIO_MODER_MODER11;
-    GPIOC->MODER |= GPIO_MODER_MODER11_0; //Set PC11 as output
+    GPIOC->MODER |= 0b01 << GPIO_MODER_MODER11_Pos; //Set PC11 as output
+
+    // set GPIOC high on start
+    GPIOC->ODR |= GPIO_ODR_OD11;
 
     network_is_init = true;
 
@@ -91,11 +95,13 @@ ERROR_CODE network_tx(uint8_t * buffer, size_t size)
         THROW_ERROR(ERROR_CODE_NETWORK_NOT_INITIALIZED);
     }
 
-    unsigned int availableMsgs = MSG_QUEUE_SIZE - network_msg_queue_count();
-    if ((size % MAX_MESSAGE_SIZE) <= availableMsgs)
-    {
-        THROW_ERROR(ERROR_CODE_NETWORK_MSG_QUEUE_FULL);
-    }
+    // TODO: This needs to be fixed to accurately calculate the number of
+    //       messages required for transmission
+    // unsigned int availableMsgs = MSG_QUEUE_SIZE - network_msg_queue_count();
+    // if ((size / MAX_MESSAGE_SIZE) <= availableMsgs)
+    // {
+    //     THROW_ERROR(ERROR_CODE_NETWORK_MSG_QUEUE_FULL);
+    // }
 
     unsigned int queued_bytes = 0;
     unsigned char manchester[MAX_MESSAGE_SIZE_MANCHESTER];
