@@ -210,7 +210,7 @@ network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
             unsigned int manchesterBitIdx = (bitIdx * 2) % 8;
             unsigned int manchesterBitsValue = inputBitValue ? 0b01 : 0b10;
 
-            if ((bitIdx * 2) < 8)
+            if ((bitIdx * 2) == 8)
             {
                 manchesterBytePtr += 1;
             }
