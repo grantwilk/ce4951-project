@@ -26,7 +26,8 @@
 /* ------------------------------------------ Defines ------------------------------------------- */
 
 
-# define CE4981_NETWORK_TIMEOUT_PERIOD_US  ( 1100U )
+# define CE4981_NETWORK_TIMEOUT_PERIOD_US   ( 1100U )
+# define CE4981_NETWORK_MAX_MESSAGE_SIZE    ( 256 )
 
 
 /* ----------------------------------------- Functions ------------------------------------------ */
@@ -58,53 +59,27 @@ int main( void )
     uprintf("/* ---------- DEVICE RESET ---------- */\n\n");
 
     // start network
-    // ERROR_HANDLE_FATAL( channel_monitor_init() );
-    // ERROR_HANDLE_FATAL( network_init() );
+    ERROR_HANDLE_FATAL( channel_monitor_init() );
+    ERROR_HANDLE_FATAL( network_init() );
 
     // start timeout timer
-    // ERROR_HANDLE_FATAL( timeout_init( CE4981_NETWORK_TIMEOUT_PERIOD_US ) );
+    ERROR_HANDLE_FATAL( timeout_init( CE4981_NETWORK_TIMEOUT_PERIOD_US ) );
 
     // initialize leds
-    // ERROR_HANDLE_FATAL( leds_init() );
+    ERROR_HANDLE_FATAL( leds_init() );
 
     // set initial state to IDLE
-    // ERROR_HANDLE_FATAL( state_set( IDLE ) );
+    ERROR_HANDLE_FATAL( state_set( IDLE ) );
 
-    char str[256];
+    // UART user interface loop
+    char uartRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
     while(1)
     {
-
-        fgets(str, 256, stdin);
+        uprintf(">> ");
+        fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
         fflush(stdin);
-        uprintf("RECEIVED: %s", str);
-        //uprintf("%d", strlen(str)-1);
-        network_tx(str, strlen(str)-1);
-    }
-
-
-    // enter endless loop
-    //todo implement UART program, reading lines of text from user and sending via network_tx
-
-    // make buffer of max message size
-    //char *buffer = new char[max_message_size];
-    while(1)
-    {
-        //int msize = 0;
-        //if(!network_tx_isFull()) {
-        //  for(uint i = 0; i < buffer.size && i >= 0; ++i) {
-        //      if(i > 0 && buffer[i-1] == NULL) { //i>0 should avoid buffer[-1]
-        //          //IF last character was null end loop with one less total character
-        //          i = 0;
-        //          --msize;
-        //      } elsif(ERROR_CODE_DRIVER_SERIAL_UART_TIMEOUT == uartRxByte(*buffer[i], timeout)) {
-        //          //IF pulling gives us a timeout end loop.
-        //          i = 0;
-        //      } else {
-        //          ++msize;
-        //      }
-        //  }
-        //  network_tx(buffer, msize)
-        //}
+        uprintf("Transmitting Message: %s\n", uartRxBuffer);
+        network_tx(uartRxBuffer, strlen(uartRxBuffer) - 1);
     }
 }
 
