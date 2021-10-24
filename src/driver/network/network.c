@@ -245,7 +245,13 @@ unsigned int network_msg_queue_count()
 
 }
 
-
+/**
+ * Decodes a manchester encoded message into a frame
+ *
+ * @param   [out]   frame       Frame to decode into (must have message buffer pre-allocated)
+ * @param   [in]    manchester  The input buffer of a manchester encoded frame
+ * @return  error code
+ */
 static ERROR_CODE network_decode_manchester_frame(msg_frame_t * frame, uint8_t * manchester)
 {
     ERROR_HANDLE_NON_FATAL(network_decode_manchester_header(&frame->header, manchester));
@@ -256,7 +262,25 @@ static ERROR_CODE network_decode_manchester_frame(msg_frame_t * frame, uint8_t *
     RETURN_NO_ERROR();  
 }
 
+/**
+ * Decodes a manchester encoded frame header
+ *
+ * @param   [out]   header      Frame header to decode into
+ * @param   [in]    manchester  Pointer to the start of a Manchester encoded frame header
+ * @return  error code
+ */
+static ERROR_CODE network_decode_manchester_header(msg_header_t * header, uint8_t * manchester)
+{
+    return network_decode_manchester((uint8_t *) header, manchester, sizeof(msg_header_t));
+}
 
+/**
+ * Decodes a manchester encoded message and trailer into a frame with an existing header
+ *
+ * @param   [out]   frame       Frame to decode into (must have message buffer pre-allocated and header already decoded)
+ * @param   [in]    manchester  Pointer to the start of the message in a Manchester encoded frame
+ * @return  error code
+ */
 static ERROR_CODE network_decode_manchester_frame_message_trailer(msg_frame_t * frame, uint8_t * manchester)
 {
     ERROR_HANDLE_NON_FATAL(network_decode_manchester(
@@ -272,11 +296,14 @@ static ERROR_CODE network_decode_manchester_frame_message_trailer(msg_frame_t * 
     RETURN_NO_ERROR();
 }
 
-static ERROR_CODE network_decode_manchester_header(msg_header_t * header, uint8_t * manchester)
-{
-    return network_decode_manchester((uint8_t *) header, manchester, sizeof(msg_header_t));
-}
+/**
+ * Encodes a frame into a manchester encoded buffer
+ * 
+ * @param   [in]    manchester  Buffer to encode frame into. Must be at least the max size of a manchester encoded frame
+ * @param   [out]   frame       Frame to encode
 
+ * @return  number of bytes filled into the manchester buffer
+ */
 static unsigned int network_encode_frame_manchester(uint8_t * manchester, msg_frame_t * frame)
 {
     unsigned int size = 0;
@@ -287,13 +314,19 @@ static unsigned int network_encode_frame_manchester(uint8_t * manchester, msg_fr
 }
 
 
-//size_t size in bytes
+/**
+ * Encodes a buffer into Manchester encoding
+ *
+ * @param   [out] buffer      The out buffer to decode from Manchester
+ * @param   [in]  manchester  The input Manchester encoded buffer
+ * @param   [in]  size        The number of DECODED BYTES expected from 
+ *                              the manchester buffer (2x size of manchester input buffer)
+ */
 static ERROR_CODE network_decode_manchester(uint8_t * buffer, uint8_t * manchester, size_t size)
 {
     #ifdef MANCHESTER_DBG
     printBytesHex("MANCHESTER", manchester, size*2);
     #endif
-
 
     // zero the buffer
     memset(buffer, 0, size);
@@ -308,8 +341,8 @@ static ERROR_CODE network_decode_manchester(uint8_t * buffer, uint8_t * manchest
         {
             unsigned int manchesterBitIdx = (bitIdx * 2) % 8;
 
-            unsigned int manchesterValue = (manchester[bitIdx > 3 ? byteIdx * 2 +1: byteIdx * 2] >> (6 - manchesterBitIdx)) & 0b11;
-
+            unsigned int manchesterValue = (manchester[bitIdx > 3 ? byteIdx * 2 +1: byteIdx * 2] 
+                                                >> (6 - manchesterBitIdx)) & 0b11;
             bool bitValue;  
             if (manchesterValue == 0b01){
                 bitValue = true;
@@ -321,7 +354,6 @@ static ERROR_CODE network_decode_manchester(uint8_t * buffer, uint8_t * manchest
             else {
                 THROW_ERROR(ERROR_CODE_INVALID_MANCHESTER_RECEIVED); //todo error code, invalid manchester
             }
-
             *bytePtr |= bitValue << (7 - bitIdx);
         }
     }
@@ -365,15 +397,7 @@ network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
             unsigned int manchesterBitIdx = (bitIdx * 2) % 8;
             unsigned int manchesterBitsValue = inputBitValue ? 0b01 : 0b10;
 
-            if (bitIdx >= 4)
-            {
-                manchesterBytePtr[1] |= manchesterBitsValue << (6 - manchesterBitIdx);
-            }
-            else
-            {
-                manchesterBytePtr[0] |= manchesterBitsValue << (6 - manchesterBitIdx);
-            }
-
+            manchesterBytePtr[bitIdx > 3 ? 1 : 0] |= manchesterBitsValue << (6 - manchesterBitIdx);
         }
     }
 
