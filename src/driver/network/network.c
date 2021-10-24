@@ -6,7 +6,6 @@
 #include "network.h"
 #include "state.h"
 #include "hb_timer.h"
-#include "state.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
@@ -66,8 +65,11 @@ ERROR_CODE network_init()
     RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN; //SYSCFGEN
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;  //GPIOCEN
 
+    // set GPIOC high on start
+    GPIOC->ODR |= GPIO_ODR_OD11;
+
     GPIOC->MODER &= ~GPIO_MODER_MODER11;
-    GPIOC->MODER |= GPIO_MODER_MODER11_0; //Set PC11 as output
+    GPIOC->MODER |= 0b01 << GPIO_MODER_MODER11_Pos; //Set PC11 as output
 
     network_is_init = true;
 
@@ -91,11 +93,13 @@ ERROR_CODE network_tx(uint8_t * buffer, size_t size)
         THROW_ERROR(ERROR_CODE_NETWORK_NOT_INITIALIZED);
     }
 
-    unsigned int availableMsgs = MSG_QUEUE_SIZE - network_msg_queue_count();
-    if ((size % MAX_MESSAGE_SIZE) <= availableMsgs)
-    {
-        THROW_ERROR(ERROR_CODE_NETWORK_MSG_QUEUE_FULL);
-    }
+    // TODO: This needs to be fixed to accurately calculate the number of
+    //       messages required for transmission
+    // unsigned int availableMsgs = MSG_QUEUE_SIZE - network_msg_queue_count();
+    // if ((size / MAX_MESSAGE_SIZE) <= availableMsgs)
+    // {
+    //     THROW_ERROR(ERROR_CODE_NETWORK_MSG_QUEUE_FULL);
+    // }
 
     unsigned int queued_bytes = 0;
     unsigned char manchester[MAX_MESSAGE_SIZE_MANCHESTER];
@@ -207,25 +211,57 @@ network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
     // encoding loop
     for (unsigned int byteIdx = 0; byteIdx < size; byteIdx++)
     {
-        unsigned char inputByteValue = ((unsigned char *) buffer)[byteIdx];
-        unsigned char * manchesterBytePtr =
-            &(((unsigned char *) manchester)[byteIdx * 2]);
+        uint8_t inputByteValue = buffer[byteIdx];
+        uint8_t * manchesterBytePtr = &(manchester[byteIdx * 2]);
 
-        for (unsigned int bitIdx = 0; bitIdx < 7; bitIdx++)
+        for (unsigned int bitIdx = 0; bitIdx < 8; bitIdx++)
         {
-            bool inputBitValue = (inputByteValue >> ( 7 - bitIdx)) & 0x01;
+            bool inputBitValue = (inputByteValue >> (7 - bitIdx)) & 0x01;
 
             unsigned int manchesterBitIdx = (bitIdx * 2) % 8;
             unsigned int manchesterBitsValue = inputBitValue ? 0b01 : 0b10;
 
-            if ((bitIdx * 2) == 8)
+            if (bitIdx >= 4)
             {
-                manchesterBytePtr += 1;
+                manchesterBytePtr[1] |= manchesterBitsValue << (6 - manchesterBitIdx);
+            }
+            else
+            {
+                manchesterBytePtr[0] |= manchesterBitsValue << (6 - manchesterBitIdx);
             }
 
-            *manchesterBytePtr |= manchesterBitsValue << (7 - manchesterBitIdx);
         }
     }
+
+    // uprintf("BUFFER:");
+    // for (int i = 0; i < size; i++)
+    // {
+    //     if (i % 64 == 0)
+    //     {
+    //         uprintf("\n");
+    //     }
+    //     else if (i % 2 == 0)
+    //     {
+    //         uprintf(" ");
+    //     }
+    //     uprintf("%02X", buffer[i]);
+    // }
+    // uprintf("\n\n");
+
+    // uprintf("MANCHESTER:");
+    // for (int i = 0; i < size * 2; i++)
+    // {
+    //     if (i % 64 == 0)
+    //     {
+    //         uprintf("\n");
+    //     }
+    //     else if (i % 2 == 0)
+    //     {
+    //         uprintf(" ");
+    //     }
+    //     uprintf("%02X", manchester[i]);
+    // }
+    // uprintf("\n\n");
 }
 
 
@@ -247,7 +283,7 @@ static bool network_msg_queue_push(uint8_t * buffer, size_t size)
 
     // it is important that we make a copy of the buffer in the queue,
     // otherwise we risk modifying the data before it can be transmitted
-    memcpy( msg_queue[push_idx].buffer, buffer, size);
+    memcpy(msg_queue[push_idx].buffer, buffer, size);
     msg_queue[push_idx].size = size;
 
     push_idx = ( push_idx + 1) % MSG_QUEUE_SIZE;
@@ -296,7 +332,6 @@ void TIM4_IRQHandler()
 
         if(state != COLLISION)
         {
-            // Reset the timer
             hb_timer_reset_and_start();
 
             if(byteIdx == msg_queue[msg_idx].size)
@@ -314,7 +349,7 @@ void TIM4_IRQHandler()
                 {
                     ERROR_HANDLE_NON_FATAL(ERROR_CODE_NETWORK_MSG_POP_FAILURE)
                 }
-                network_msg_queue_pop();
+
                 // Output a 1 to PC11 - IDLE State
                 GPIOC->ODR |= GPIO_ODR_OD11;
 
