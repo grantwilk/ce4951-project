@@ -18,6 +18,11 @@
 #define MAX_MESSAGE_SIZE_MANCHESTER     (MAX_MESSAGE_SIZE * 2)
 
 #define LOCAL_MACHINE_ADDRESS           (0x23) //TODO changeme if needed
+#define HEADER_PREAMBLE                 (0x55)
+#define PROTOCOL_VERSION                (0x01)
+
+// #define NETWORK_TX_DBG
+// #define MANCHESTER_DBG
 
 /**
  * Initialization flag
@@ -32,37 +37,6 @@ typedef struct
     char buffer[MAX_MESSAGE_SIZE_MANCHESTER];
     size_t size;
 } msg_queue_node_t;
-
-
-
-
-typedef struct
-{
-    uint8_t preamble;
-    uint8_t version ;
-    uint8_t source;
-    uint8_t destination;
-    uint8_t length;
-    uint8_t crc_flag;
-} msg_header_t;
-
-typedef struct
-{
-    uint8_t crc8_fcs;
-} msg_trailer_t;
-
-
-static const msg_header_t defaultTxHeader = {0x55, 0x1, LOCAL_MACHINE_ADDRESS, 0x0, 0x0, 0x01};
-
-/**
- *
- */
-typedef struct
-{
-    msg_header_t header;
-    char * message;
-    msg_trailer_t trailer;
-} msg_frame_t;
 
 
 /**
@@ -112,6 +86,25 @@ ERROR_CODE network_init()
     RETURN_NO_ERROR();
 }
 
+//handy function to print bytes for debugging
+static void printBytesHex(char * name, uint8_t * bytes, size_t size)
+{
+    uprintf("%s:", name);
+    for (int i = 0; i < size; i++)
+    {
+        if (i % 64 == 0)
+        {
+            uprintf("\n");
+        }
+        else if (i % 2 == 0)
+        {
+            uprintf(" ");
+        }
+        uprintf("%02X", bytes[i]);
+    }
+    uprintf("\n\n");
+}
+
 
 /**
  * Adds a buffer to a message queue and attempts to begin transmission.
@@ -141,8 +134,7 @@ ERROR_CODE network_tx(uint8_t * buffer, size_t size)
     unsigned char manchester[MAX_MESSAGE_SIZE_MANCHESTER];
 
 
-    msg_frame_t frame;
-    frame.header = defaultTxHeader;
+    msg_frame_t frame = {{HEADER_PREAMBLE, PROTOCOL_VERSION, LOCAL_MACHINE_ADDRESS, 0x0, 0x0, 0x01}, NULL, {0x00}};
 
     //TODO set dest IP
     frame.header.destination = 0x00;
@@ -157,13 +149,28 @@ ERROR_CODE network_tx(uint8_t * buffer, size_t size)
 
         frame.header.length = MIN(MAX_MESSAGE_SIZE, size - queued_bytes);
 
-        network_encode_frame_manchester(manchester, &frame);
+        unsigned int manchesterSize = network_encode_frame_manchester(manchester, &frame);
 
-        if (!network_msg_queue_push(manchester, (sizeof(msg_header_t) + frame.header.length + sizeof(uint8_t)) * 2))
+
+        #ifdef NETWORK_TX_DBG
+            printBytesHex("ORIGINAL HEADER", (uint8_t *) &frame.header, sizeof(msg_header_t));
+            printBytesHex("ORIGINAL MESSAGE", frame.message, frame.header.length);
+            printBytesHex("ORIGINAL TRAILER", (uint8_t *) &frame.trailer, sizeof(msg_trailer_t));
+            printBytesHex("ENTIRE MANCHESTER FRAME ENCODED", manchester, manchesterSize);
+            msg_frame_t retFrame;
+            char buf[256];
+            retFrame.message = buf;
+            network_decode_manchester_frame(&retFrame, manchester);
+            printBytesHex("DECODED HEADER", (uint8_t *) &retFrame.header, sizeof(msg_header_t));
+            printBytesHex("DECODED MESSAGE", frame.message, retFrame.header.length);
+            printBytesHex("DECODED TRAILER", (uint8_t *) &retFrame.trailer, sizeof(msg_trailer_t));
+        #endif
+
+
+        if (!network_msg_queue_push(manchester, manchesterSize))
         {
             THROW_ERROR(ERROR_CODE_NETWORK_MSG_QUEUE_FULL);
         }
-
         queued_bytes += frame.header.length;
     }
 
@@ -220,7 +227,8 @@ bool network_msg_queue_is_empty()
 
 
 /**
- * Gets the number of messages in the message queue
+ * Gets the number of messages in the 
+ *  queue
  *
  * @return  The number of messages in the message queue
  */
@@ -237,36 +245,72 @@ unsigned int network_msg_queue_count()
 
 }
 
-static void network_decode_manchester_header(msg_header_t * header, uint8_t * manchester)
+
+static ERROR_CODE network_decode_manchester_frame(msg_frame_t * frame, uint8_t * manchester)
 {
-    network_decode_manchester(header, manchester, sizeof(msg_header_t));
+    ERROR_HANDLE_NON_FATAL(network_decode_manchester_header(&frame->header, manchester));
+    return network_decode_manchester_frame_message_trailer(
+        frame,
+        manchester + sizeof(msg_header_t) * 2
+    );
+    RETURN_NO_ERROR();  
 }
 
-static void network_encode_frame_manchester(uint8_t manchester, msg_frame_t * frame)
+
+static ERROR_CODE network_decode_manchester_frame_message_trailer(msg_frame_t * frame, uint8_t * manchester)
 {
-    network_encode_manchester(manchester, &(frame->header), sizeof(msg_header_t));
-    network_encode_manchester(manchester + sizeof(msg_header_t), frame->message, frame->header.length);
-    network_encode_manchester(manchester + sizeof(msg_header_t) + frame->header.length, &(frame->trailer), sizeof(msg_trailer_t));
+    ERROR_HANDLE_NON_FATAL(network_decode_manchester(
+        (uint8_t *)frame->message, 
+        manchester, 
+        frame->header.length)
+    );
+    ERROR_HANDLE_NON_FATAL(network_decode_manchester(
+        (uint8_t *)&frame->trailer, 
+        manchester + frame->header.length * 2, 
+        sizeof(msg_trailer_t))
+    );
+    RETURN_NO_ERROR();
 }
+
+static ERROR_CODE network_decode_manchester_header(msg_header_t * header, uint8_t * manchester)
+{
+    return network_decode_manchester((uint8_t *) header, manchester, sizeof(msg_header_t));
+}
+
+static unsigned int network_encode_frame_manchester(uint8_t * manchester, msg_frame_t * frame)
+{
+    unsigned int size = 0;
+    size += network_encode_manchester(manchester,  (uint8_t *) &(frame->header), sizeof(msg_header_t));
+    size += network_encode_manchester(manchester + size, frame->message, frame->header.length);
+    size += network_encode_manchester(manchester + size, (uint8_t *) &(frame->trailer), sizeof(msg_trailer_t));
+    return size;
+}
+
 
 //size_t size in bytes
 static ERROR_CODE network_decode_manchester(uint8_t * buffer, uint8_t * manchester, size_t size)
 {
+    #ifdef MANCHESTER_DBG
+    printBytesHex("MANCHESTER", manchester, size*2);
+    #endif
+
+
     // zero the buffer
     memset(buffer, 0, size);
+
 
     // decoding loop
     for (unsigned int byteIdx = 0; byteIdx < size; byteIdx++)
     {
-        uint8_t * bytePtr = buffer[byteIdx];
+        uint8_t * bytePtr = &(buffer[byteIdx]);
 
         for (unsigned int bitIdx = 0; bitIdx <8; bitIdx++)
         {
             unsigned int manchesterBitIdx = (bitIdx * 2) % 8;
-            unsigned int manchesterValue = (manchester[manchesterBitIdx > 4 ? byteIdx : byteIdx + 1] >> (6 - manchesterBitIdx)) & 0b11;
 
-            bool bitValue;
-            
+            unsigned int manchesterValue = (manchester[bitIdx > 3 ? byteIdx * 2 +1: byteIdx * 2] >> (6 - manchesterBitIdx)) & 0b11;
+
+            bool bitValue;  
             if (manchesterValue == 0b01){
                 bitValue = true;
             }
@@ -275,13 +319,20 @@ static ERROR_CODE network_decode_manchester(uint8_t * buffer, uint8_t * manchest
                 bitValue = false;
             }
             else {
-                THROW_ERROR(0); //todo error code, invalid manchester
+                THROW_ERROR(ERROR_CODE_INVALID_MANCHESTER_RECEIVED); //todo error code, invalid manchester
             }
-            
-            *bytePtr |= manchesterValue << (7 - manchesterBitIdx);
+
+            *bytePtr |= bitValue << (7 - bitIdx);
         }
     }
+
+    #ifdef MANCHESTER_DBG
+    printBytesHex("BUFFER", buffer, size);
+    #endif
+    RETURN_NO_ERROR();
 }
+
+
 
 /**
  * Encodes a buffer into Manchester encoding
@@ -291,9 +342,13 @@ static ERROR_CODE network_decode_manchester(uint8_t * buffer, uint8_t * manchest
  * @param   [in]    buffer      The input buffer to encode in Manchester
  * @param   [in]    size        The size of the input buffer
  */
-static void
+static unsigned int
 network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
 {
+    #ifdef MANCHESTER_DBG
+    printBytesHex("BUFFER", buffer, size);
+    #endif
+
     // zero the manchester buffer
     memset(manchester, 0, size * 2);
 
@@ -322,35 +377,11 @@ network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
         }
     }
 
-    // uprintf("BUFFER:");
-    // for (int i = 0; i < size; i++)
-    // {
-    //     if (i % 64 == 0)
-    //     {
-    //         uprintf("\n");
-    //     }
-    //     else if (i % 2 == 0)
-    //     {
-    //         uprintf(" ");
-    //     }
-    //     uprintf("%02X", buffer[i]);
-    // }
-    // uprintf("\n\n");
+    #ifdef MANCHESTER_DBG
+    printBytesHex("MANCHESTER", manchester, size*2);
+    #endif
 
-    // uprintf("MANCHESTER:");
-    // for (int i = 0; i < size * 2; i++)
-    // {
-    //     if (i % 64 == 0)
-    //     {
-    //         uprintf("\n");
-    //     }
-    //     else if (i % 2 == 0)
-    //     {
-    //         uprintf(" ");
-    //     }
-    //     uprintf("%02X", manchester[i]);
-    // }
-    // uprintf("\n\n");
+    return size * 2;
 }
 
 
