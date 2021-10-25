@@ -12,8 +12,17 @@
 #define MSG_QUEUE_SIZE                  (10)
 #define HALF_BIT_PERIOD_US              (500)
 
-#define MAX_MESSAGE_SIZE                (256)
+#define MAX_MESSAGE_SIZE                (255)
+#define MAX_FRAME_SIZE                  (MAX_MESSAGE_SIZE + sizeof(msg_header_t) + sizeof(msg_trailer_t))
+
 #define MAX_MESSAGE_SIZE_MANCHESTER     (MAX_MESSAGE_SIZE * 2)
+
+#define LOCAL_MACHINE_ADDRESS           (0x23) //TODO changeme if needed
+#define HEADER_PREAMBLE                 (0x55)
+#define PROTOCOL_VERSION                (0x01)
+
+// #define NETWORK_TX_DBG
+// #define MANCHESTER_DBG
 
 /**
  * Initialization flag
@@ -28,6 +37,7 @@ typedef struct
     char buffer[MAX_MESSAGE_SIZE_MANCHESTER];
     size_t size;
 } msg_queue_node_t;
+
 
 /**
  * Network circular message queue.
@@ -76,6 +86,25 @@ ERROR_CODE network_init()
     RETURN_NO_ERROR();
 }
 
+//handy function to print bytes for debugging
+static void printBytesHex(char * name, uint8_t * bytes, size_t size)
+{
+    uprintf("%s:", name);
+    for (int i = 0; i < size; i++)
+    {
+        if (i % 64 == 0)
+        {
+            uprintf("\n");
+        }
+        else if (i % 2 == 0)
+        {
+            uprintf(" ");
+        }
+        uprintf("%02X", bytes[i]);
+    }
+    uprintf("\n\n");
+}
+
 
 /**
  * Adds a buffer to a message queue and attempts to begin transmission.
@@ -104,23 +133,45 @@ ERROR_CODE network_tx(uint8_t * buffer, size_t size)
     unsigned int queued_bytes = 0;
     unsigned char manchester[MAX_MESSAGE_SIZE_MANCHESTER];
 
+
+    msg_frame_t frame = {{HEADER_PREAMBLE, PROTOCOL_VERSION, LOCAL_MACHINE_ADDRESS, 0x0, 0x0, 0x01}, NULL, {0x00}};
+
+    //TODO set dest IP
+    frame.header.destination = 0x00;
+
     // break buffer into chunks and queue
     while (size - queued_bytes)
     {
-        unsigned int chunk_size = MIN(MAX_MESSAGE_SIZE, size - queued_bytes);
+        frame.message = buffer + queued_bytes;
 
-        network_encode_manchester(
-            manchester,
-            buffer + queued_bytes,
-            chunk_size
-        );
+        //TODO set trailer with big brain CRC algorithm
+        frame.trailer.crc8_fcs = 0x00;
 
-        if (!network_msg_queue_push(manchester, chunk_size * 2))
+        frame.header.length = MIN(MAX_MESSAGE_SIZE, size - queued_bytes);
+
+        unsigned int manchesterSize = network_encode_frame_manchester(manchester, &frame);
+
+
+        #ifdef NETWORK_TX_DBG
+            printBytesHex("ORIGINAL HEADER", (uint8_t *) &frame.header, sizeof(msg_header_t));
+            printBytesHex("ORIGINAL MESSAGE", frame.message, frame.header.length);
+            printBytesHex("ORIGINAL TRAILER", (uint8_t *) &frame.trailer, sizeof(msg_trailer_t));
+            printBytesHex("ENTIRE MANCHESTER FRAME ENCODED", manchester, manchesterSize);
+            msg_frame_t retFrame;
+            char buf[256];
+            retFrame.message = buf;
+            network_decode_manchester_frame(&retFrame, manchester);
+            printBytesHex("DECODED HEADER", (uint8_t *) &retFrame.header, sizeof(msg_header_t));
+            printBytesHex("DECODED MESSAGE", frame.message, retFrame.header.length);
+            printBytesHex("DECODED TRAILER", (uint8_t *) &retFrame.trailer, sizeof(msg_trailer_t));
+        #endif
+
+
+        if (!network_msg_queue_push(manchester, manchesterSize))
         {
             THROW_ERROR(ERROR_CODE_NETWORK_MSG_QUEUE_FULL);
         }
-
-        queued_bytes += chunk_size;
+        queued_bytes += frame.header.length;
     }
 
     // attempt to start a transmission
@@ -176,7 +227,8 @@ bool network_msg_queue_is_empty()
 
 
 /**
- * Gets the number of messages in the message queue
+ * Gets the number of messages in the 
+ *  queue
  *
  * @return  The number of messages in the message queue
  */
@@ -193,6 +245,126 @@ unsigned int network_msg_queue_count()
 
 }
 
+/**
+ * Decodes a manchester encoded message into a frame
+ *
+ * @param   [out]   frame       Frame to decode into (must have message buffer pre-allocated)
+ * @param   [in]    manchester  The input buffer of a manchester encoded frame
+ * @return  error code
+ */
+static ERROR_CODE network_decode_manchester_frame(msg_frame_t * frame, uint8_t * manchester)
+{
+    ERROR_HANDLE_NON_FATAL(network_decode_manchester_header(&frame->header, manchester));
+    return network_decode_manchester_frame_message_trailer(
+        frame,
+        manchester + sizeof(msg_header_t) * 2
+    );
+    RETURN_NO_ERROR();  
+}
+
+/**
+ * Decodes a manchester encoded frame header
+ *
+ * @param   [out]   header      Frame header to decode into
+ * @param   [in]    manchester  Pointer to the start of a Manchester encoded frame header
+ * @return  error code
+ */
+static ERROR_CODE network_decode_manchester_header(msg_header_t * header, uint8_t * manchester)
+{
+    return network_decode_manchester((uint8_t *) header, manchester, sizeof(msg_header_t));
+}
+
+/**
+ * Decodes a manchester encoded message and trailer into a frame with an existing header
+ *
+ * @param   [out]   frame       Frame to decode into (must have message buffer pre-allocated and header already decoded)
+ * @param   [in]    manchester  Pointer to the start of the message in a Manchester encoded frame
+ * @return  error code
+ */
+static ERROR_CODE network_decode_manchester_frame_message_trailer(msg_frame_t * frame, uint8_t * manchester)
+{
+    ERROR_HANDLE_NON_FATAL(network_decode_manchester(
+        (uint8_t *)frame->message, 
+        manchester, 
+        frame->header.length)
+    );
+    ERROR_HANDLE_NON_FATAL(network_decode_manchester(
+        (uint8_t *)&frame->trailer, 
+        manchester + frame->header.length * 2, 
+        sizeof(msg_trailer_t))
+    );
+    RETURN_NO_ERROR();
+}
+
+/**
+ * Encodes a frame into a manchester encoded buffer
+ * 
+ * @param   [in]    manchester  Buffer to encode frame into. Must be at least the max size of a manchester encoded frame
+ * @param   [out]   frame       Frame to encode
+
+ * @return  number of bytes filled into the manchester buffer
+ */
+static unsigned int network_encode_frame_manchester(uint8_t * manchester, msg_frame_t * frame)
+{
+    unsigned int size = 0;
+    size += network_encode_manchester(manchester,  (uint8_t *) &(frame->header), sizeof(msg_header_t));
+    size += network_encode_manchester(manchester + size, frame->message, frame->header.length);
+    size += network_encode_manchester(manchester + size, (uint8_t *) &(frame->trailer), sizeof(msg_trailer_t));
+    return size;
+}
+
+
+/**
+ * Encodes a buffer into Manchester encoding
+ *
+ * @param   [out] buffer      The out buffer to decode from Manchester
+ * @param   [in]  manchester  The input Manchester encoded buffer
+ * @param   [in]  size        The number of DECODED BYTES expected from 
+ *                              the manchester buffer (1/2 x size of manchester input buffer)
+ */
+static ERROR_CODE network_decode_manchester(uint8_t * buffer, uint8_t * manchester, size_t size)
+{
+    #ifdef MANCHESTER_DBG
+    printBytesHex("MANCHESTER", manchester, size*2);
+    #endif
+
+    // zero the buffer
+    memset(buffer, 0, size);
+
+
+    // decoding loop
+    for (unsigned int byteIdx = 0; byteIdx < size; byteIdx++)
+    {
+        uint8_t * bytePtr = &(buffer[byteIdx]);
+
+        for (unsigned int bitIdx = 0; bitIdx <8; bitIdx++)
+        {
+            unsigned int manchesterBitIdx = (bitIdx * 2) % 8;
+
+            unsigned int manchesterValue = (manchester[bitIdx > 3 ? byteIdx * 2 +1: byteIdx * 2] 
+                                                >> (6 - manchesterBitIdx)) & 0b11;
+            bool bitValue;  
+            if (manchesterValue == 0b01){
+                bitValue = true;
+            }
+            else if (manchesterValue == 0b10)
+            {
+                bitValue = false;
+            }
+            else {
+                THROW_ERROR(ERROR_CODE_INVALID_MANCHESTER_RECEIVED); //todo error code, invalid manchester
+            }
+            *bytePtr |= bitValue << (7 - bitIdx);
+        }
+    }
+
+    #ifdef MANCHESTER_DBG
+    printBytesHex("BUFFER", buffer, size);
+    #endif
+    RETURN_NO_ERROR();
+}
+
+
 
 /**
  * Encodes a buffer into Manchester encoding
@@ -202,9 +374,13 @@ unsigned int network_msg_queue_count()
  * @param   [in]    buffer      The input buffer to encode in Manchester
  * @param   [in]    size        The size of the input buffer
  */
-static void
+static unsigned int
 network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
 {
+    #ifdef MANCHESTER_DBG
+    printBytesHex("BUFFER", buffer, size);
+    #endif
+
     // zero the manchester buffer
     memset(manchester, 0, size * 2);
 
@@ -221,47 +397,15 @@ network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
             unsigned int manchesterBitIdx = (bitIdx * 2) % 8;
             unsigned int manchesterBitsValue = inputBitValue ? 0b01 : 0b10;
 
-            if (bitIdx >= 4)
-            {
-                manchesterBytePtr[1] |= manchesterBitsValue << (6 - manchesterBitIdx);
-            }
-            else
-            {
-                manchesterBytePtr[0] |= manchesterBitsValue << (6 - manchesterBitIdx);
-            }
-
+            manchesterBytePtr[bitIdx > 3 ? 1 : 0] |= manchesterBitsValue << (6 - manchesterBitIdx);
         }
     }
 
-    // uprintf("BUFFER:");
-    // for (int i = 0; i < size; i++)
-    // {
-    //     if (i % 64 == 0)
-    //     {
-    //         uprintf("\n");
-    //     }
-    //     else if (i % 2 == 0)
-    //     {
-    //         uprintf(" ");
-    //     }
-    //     uprintf("%02X", buffer[i]);
-    // }
-    // uprintf("\n\n");
+    #ifdef MANCHESTER_DBG
+    printBytesHex("MANCHESTER", manchester, size*2);
+    #endif
 
-    // uprintf("MANCHESTER:");
-    // for (int i = 0; i < size * 2; i++)
-    // {
-    //     if (i % 64 == 0)
-    //     {
-    //         uprintf("\n");
-    //     }
-    //     else if (i % 2 == 0)
-    //     {
-    //         uprintf(" ");
-    //     }
-    //     uprintf("%02X", manchester[i]);
-    // }
-    // uprintf("\n\n");
+    return size * 2;
 }
 
 
@@ -308,7 +452,6 @@ static bool network_msg_queue_pop()
     pop_idx = (pop_idx + 1) % MSG_QUEUE_SIZE;
     return true;
 }
-
 
 /**
  * IRQ Handler for hb_timer
