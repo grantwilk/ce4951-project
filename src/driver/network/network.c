@@ -320,7 +320,7 @@ static unsigned int network_encode_frame_manchester(uint8_t * manchester, msg_fr
  * @param   [out] buffer      The out buffer to decode from Manchester
  * @param   [in]  manchester  The input Manchester encoded buffer
  * @param   [in]  size        The number of DECODED BYTES expected from 
- *                              the manchester buffer (2x size of manchester input buffer)
+ *                              the manchester buffer (1/2 x size of manchester input buffer)
  */
 static ERROR_CODE network_decode_manchester(uint8_t * buffer, uint8_t * manchester, size_t size)
 {
