@@ -1,21 +1,10 @@
 #ifndef DRIVER_NETWORK_H
 #define DRIVER_NETWORK_H
 
+
 #include <stddef.h>
 #include <stdbool.h>
 #include "error.h"
-
-
-ERROR_CODE network_init();
-
-ERROR_CODE network_tx(uint8_t * buffer, size_t size);
-
-ERROR_CODE network_start_tx();
-
-bool network_msg_queue_is_full();
-bool network_msg_queue_is_empty();
-unsigned int network_msg_queue_count();
-
 
 
 typedef struct
@@ -26,33 +15,45 @@ typedef struct
     uint8_t destination;
     uint8_t length;
     uint8_t crc_flag;
-} msg_header_t;
+} frame_header_t;
 
 typedef struct
 {
     uint8_t crc8_fcs;
-} msg_trailer_t;
+} frame_trailer_t;
 
-/**
- *
- */
 typedef struct
 {
-    msg_header_t header;
+    frame_header_t header;
     char * message;
-    msg_trailer_t trailer;
-} msg_frame_t;
+    frame_trailer_t trailer;
+} frame_t;
 
+
+ERROR_CODE network_init();
+ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size);
+ERROR_CODE network_start_tx();
+
+bool network_tx_queue_is_full();
+bool network_tx_queue_is_empty();
+unsigned int network_tx_queue_count();
+static bool network_tx_queue_push(uint8_t * buffer, size_t size);
+static bool network_tx_queue_pop();
+
+bool network_rx_queue_is_full();
+bool network_rx_queue_is_empty();
+unsigned int network_rx_queue_count();
+bool network_rx_queue_push_bit(bool bit);
+bool network_rx_queue_get_last_bit();
+bool network_rx_queue_push();
+bool network_rx_queue_pop();
 
 static unsigned int network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size);
-static unsigned int network_encode_frame_manchester(uint8_t * manchester, msg_frame_t * frame);
+static unsigned int network_encode_frame_manchester( uint8_t * manchester, frame_t * frame);
 static ERROR_CODE network_decode_manchester(uint8_t * buffer, uint8_t * manchester, size_t size);
-static ERROR_CODE network_decode_manchester_frame(msg_frame_t * frame, uint8_t * manchester);
-static ERROR_CODE network_decode_manchester_frame_message_trailer(msg_frame_t * frame, uint8_t * manchester);
-static ERROR_CODE network_decode_manchester_header(msg_header_t * header, uint8_t * manchester);
-
-static bool network_msg_queue_push(uint8_t * buffer, size_t size);
-static bool network_msg_queue_pop();
+static ERROR_CODE network_decode_manchester_frame( frame_t * frame, uint8_t * manchester);
+static ERROR_CODE network_decode_manchester_frame_message_trailer( frame_t * frame, uint8_t * manchester);
+static ERROR_CODE network_decode_manchester_header( frame_header_t * header, uint8_t * manchester);
 
 
 

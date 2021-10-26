@@ -101,7 +101,7 @@ int main( void )
             rxBufferSize = (int) strlen(uartRxBuffer) - 1;
         }
         uprintf("Transmitting Message: %s\n", uartRxBuffer);
-        ERROR_HANDLE_FATAL(network_tx((uint8_t *) uartRxBuffer, rxBufferSize));
+        ERROR_HANDLE_FATAL(network_tx(0x00, (uint8_t *) uartRxBuffer, rxBufferSize));
     }
 }
 
