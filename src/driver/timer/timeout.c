@@ -96,7 +96,7 @@ ERROR_CODE timeout_init( uint16_t us )
     // enable timeout timer interrupt in NVIC
     NVIC->ISER[0] |= ( 0b01 << 29U );
 
-    // Enable the Capture Compare Register
+    // Enable the Capture Compare Register for Timer 3
     TIM3->CCMR1 &= ~(TIM_CCMR1_CC1S); // CC1 Channel configured as output
     TIM3->CCER |= TIM_CCER_CC1E; // Turn on OC1
     TIM3->DIER |= TIM_DIER_CC1IE;  // Enable CC Interrupt
