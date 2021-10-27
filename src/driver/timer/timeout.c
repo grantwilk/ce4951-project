@@ -17,6 +17,7 @@
 # include "state.h"
 # include "timeout.h"
 # include "uio.h"
+# include "network.h"
 
 
 /* --------------------------------- Defines -------------------------------- */
@@ -94,6 +95,12 @@ ERROR_CODE timeout_init( uint16_t us )
 
     // enable timeout timer interrupt in NVIC
     NVIC->ISER[0] |= ( 0b01 << 29U );
+
+    // Enable the Capture Compare Register
+    TIM3->CCMR1 &= ~(TIM_CCMR1_CC1S); // CC1 Channel configured as output
+    TIM3->CCER |= TIM_CCER_CC1E; // Turn on OC1
+    TIM3->DIER |= TIM_DIER_CC1IE;  // Enable CC Interrupt
+    TIM3->CCR1 = 750U; // CCR value = 775
 
     RETURN_NO_ERROR();
 }
@@ -229,6 +236,7 @@ void TIM3_IRQHandler()
         {
             // uprintf("IDLE\n");
             ERROR_HANDLE_NON_FATAL( state_set( IDLE ) );
+            network_rx_queue_push(); // try to push the queue
             timeout_stop();
         }
         else
@@ -237,6 +245,11 @@ void TIM3_IRQHandler()
             ERROR_HANDLE_NON_FATAL( state_set( COLLISION ) );
             timeout_stop();
         }
+    } else if ( TIM3->SR & TIM_SR_CC1IF )
+    {
+        // push last bit to the rx_queue
+        bool last_bit = network_rx_queue_get_last_bit();
+        network_rx_queue_push_bit(last_bit);
     }
 }
 

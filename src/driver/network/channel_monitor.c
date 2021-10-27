@@ -5,6 +5,7 @@
 #include "channel_monitor.h"
 #include "state.h"
 #include "timeout.h"
+#include "network.h"
 
 #define EXTI_15_10_NVIC 8
 
@@ -50,6 +51,11 @@ void EXTI15_10_IRQHandler()
         if (!isHigh)
         {
             state_set(BUSY);
+        }
+
+        if (state_get() == BUSY)
+        {
+            network_rx_queue_push_bit(isHigh) // a rising edge sends a 1 bit
         }
     }
 }
