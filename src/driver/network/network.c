@@ -100,6 +100,16 @@ ERROR_CODE network_init()
     GPIOC->MODER &= ~GPIO_MODER_MODER11;
     GPIOC->MODER |= 0b01 << GPIO_MODER_MODER11_Pos; //Set PC11 as output
 
+    // zero the receive queue so we don't have to do this in an ISR
+    for (int i = 0; i < RX_QUEUE_SIZE; i++)
+    {
+        memset(rx_queue[i].buffer, 0, MAX_FRAME_SIZE_MANCHESTER);
+    }
+
+    // push the first bit (preamble bit) onto the rx queue since this is
+    // normally handled by _push() but that neither have been called yet
+    network_rx_queue_push_bit(1);
+
     network_is_init = true;
 
     RETURN_NO_ERROR();
@@ -186,7 +196,7 @@ ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
             printBytesHex("DECODED TRAILER", (uint8_t *) &retFrame.trailer, sizeof(msg_trailer_t));
         #endif
 
-        if (!network_tx_queue_push( manchester, manchester_size ))
+        if (!network_tx_queue_push(manchester, manchester_size))
         {
             THROW_ERROR(ERROR_CODE_NETWORK_MSG_QUEUE_FULL);
         }
@@ -413,17 +423,14 @@ bool network_rx_queue_push()
     }
 
     // set "under-construction" element size
-    // frame size is push_byte_idx + 1 unless push_byte_index is the max
-    // manchester frame size, in which case it is push_byte_idx
-    rx_queue[rx_queue_push_idx].size = rx_queue_push_byte_idx +
-        (rx_queue_push_byte_idx != MAX_FRAME_SIZE_MANCHESTER);
+    rx_queue[rx_queue_push_idx].size = rx_queue_push_byte_idx;
 
     // increment the push index and reset bit/byte indices
     rx_queue_push_idx = (rx_queue_push_idx + 1) % 8;
     rx_queue_push_byte_idx = 0;
     rx_queue_push_bit_idx = 0;
 
-    // push a 1 because the first bit will always be 1 with a preamble
+    // push a 1 because the first bit will always be 1 with an 0x55 preamble
     network_rx_queue_push_bit(1);
 
     return 1;
@@ -443,6 +450,10 @@ bool network_rx_queue_pop()
         return 0;
     }
 
+    // zero out popped element
+    memset(rx_queue[rx_queue_pop_idx].buffer, 0, MAX_FRAME_SIZE_MANCHESTER);
+
+    // increase popped element index
     rx_queue_pop_idx = (rx_queue_pop_idx + 1) % 8;
 
     return 1;
