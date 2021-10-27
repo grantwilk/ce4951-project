@@ -54,8 +54,8 @@ typedef struct
  * Pop index references the index of the most recently popped element of the queue
  */
 static queue_node_t tx_queue[TX_QUEUE_SIZE];
-static int tx_queue_push_idx = 1;
-static int tx_queue_pop_idx = 0;
+static unsigned int tx_queue_push_idx = 1;
+static unsigned int tx_queue_pop_idx = 0;
 
 
 /**
@@ -69,8 +69,10 @@ static int tx_queue_pop_idx = 0;
  * Pop index references the index of the most recently popped element of the queue
  */
 static queue_node_t rx_queue[RX_QUEUE_SIZE];
-static int rx_queue_push_idx = 1;
-static int rx_queue_pop_idx = 0;
+static unsigned int rx_queue_push_idx = 1;
+static unsigned int rx_queue_pop_idx = 0;
+static unsigned int rx_queue_push_bit_idx = 0;
+static unsigned int rx_queue_push_byte_idx = 0;
 
 
 /**
@@ -355,7 +357,24 @@ unsigned int network_rx_queue_count()
  */
 bool network_rx_queue_push_bit(bool bit)
 {
-    // TODO
+    // fail to add bit if it lands outside the buffer
+    if ((rx_queue_push_byte_idx * 8 + rx_queue_push_bit_idx) >
+        (MAX_FRAME_SIZE_MANCHESTER * 8))
+    {
+        return 0;
+    }
+
+    // push bit into buffer
+    rx_queue[rx_queue_push_idx].buffer[rx_queue_push_byte_idx] |=
+        bit << (7 - rx_queue_push_bit_idx);
+
+    if (++rx_queue_push_bit_idx > 7)
+    {
+        rx_queue_push_bit_idx = 0;
+        rx_queue_push_byte_idx++;
+    }
+
+    return 1;
 }
 
 /**
@@ -366,7 +385,15 @@ bool network_rx_queue_push_bit(bool bit)
  */
 bool network_rx_queue_get_last_bit()
 {
-    // TODO
+    // the last byte index will be the same as the push byte index unless we're
+    // on the zeroth bit index, in which case the last byte index was one less
+    unsigned int last_byte_idx = rx_queue_push_byte_idx -
+        (rx_queue_push_bit_idx == 0);
+
+    unsigned int last_bit_idx = (rx_queue_push_bit_idx - 1) % 8;
+
+    return rx_queue[rx_queue_push_idx].buffer[last_byte_idx] &
+        (0b01 << (7 - last_bit_idx));
 }
 
 /**
@@ -376,7 +403,30 @@ bool network_rx_queue_get_last_bit()
  */
 bool network_rx_queue_push()
 {
-    // TODO
+    // fail if the queue is full and reset push byte/bit values to zero
+    // so the old message can be written over again
+    if (network_rx_queue_is_full())
+    {
+        rx_queue_push_byte_idx = 0;
+        rx_queue_push_bit_idx = 0;
+        return 0;
+    }
+
+    // set "under-construction" element size
+    // frame size is push_byte_idx + 1 unless push_byte_index is the max
+    // manchester frame size, in which case it is push_byte_idx
+    rx_queue[rx_queue_push_idx].size = rx_queue_push_byte_idx +
+        (rx_queue_push_byte_idx != MAX_FRAME_SIZE_MANCHESTER);
+
+    // increment the push index and reset bit/byte indices
+    rx_queue_push_idx = (rx_queue_push_idx + 1) % 8;
+    rx_queue_push_byte_idx = 0;
+    rx_queue_push_bit_idx = 0;
+
+    // push a 1 because the first bit will always be 1 with a preamble
+    network_rx_queue_push_bit(1);
+
+    return 1;
 }
 
 
@@ -387,7 +437,15 @@ bool network_rx_queue_push()
  */
 bool network_rx_queue_pop()
 {
-    // TODO
+    // fail if the queue is empty
+    if (network_rx_queue_is_empty())
+    {
+        return 0;
+    }
+
+    rx_queue_pop_idx = (rx_queue_pop_idx + 1) % 8;
+
+    return 1;
 }
 
 /**
