@@ -49,6 +49,8 @@ static bool uartIsInit = false;
 
 static circular_queue input_buffer;
 
+static char lastchar;
+
 
 /* ---------------------------------- Constructors / Destructors -------------------------------- */
 
@@ -195,6 +197,26 @@ uartRxBuffer
 	RETURN_NO_ERROR();
 }
 
+/**
+ * @brief   checks if last char recived is \n
+ * @return  bool
+ */
+bool
+uartRxReady()
+{
+    return lastchar=='\n';
+}
+
+/**
+ * allows for reprinting of message when message received in the middle of typing
+ * @param buffer for string placement
+ * @return length of string
+ */
+//int
+//uartRxReprint(char* buffer)
+//{
+//     cq_read(&input_buffer);
+//}
 
 /* -------------------------------------- Static Functions -------------------------------------- */
 
@@ -280,6 +302,7 @@ uartRxByte
     RETURN_NO_ERROR();
 }
 
+
 /* ------------------------------------- Override Functions ------------------------------------- */
 
 
@@ -321,7 +344,8 @@ void USART2_IRQHandler(void) {
     if ((USART2->SR & USART_SR_RXNE) && !cq_isfull(&input_buffer)) {
         // read the RDR
         char c = USART2->DR;
-
+        // set lastchar
+        lastchar = c;
         // push the char in the RDR into the input buffer
         cq_push(&input_buffer, c);
 

@@ -15,6 +15,7 @@
 # include "main.h"
 # include "sysclock.h"
 # include "uio.h"
+# include "uart.h"
 
 # include "leds.h"
 # include "network.h"
@@ -72,8 +73,12 @@ int main( void )
     // set initial state to IDLE
     ERROR_HANDLE_FATAL( state_set( IDLE ) );
 
-    // UART user interface loop
+    // UART buffer
     char uartRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
+    // network recive buffer
+    char networkRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
+    //standard 255.255.255.0 IP
+    uint8_t reciveIP = (0xFF);
     int rxBufferSize = 0;
 
     // TODO: These line is a temporary fix. The first transmission after reset
@@ -84,13 +89,36 @@ int main( void )
 
     while(1)
     {
-        uprintf(">> ");
-        fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
-        fflush(stdin);
-        uprintf("RECEIVED: %s", uartRxBuffer);
-        if(!strcmp(uartRxBuffer,"/zeros\n")) {
-            memset(uartRxBuffer, 0x00, 8);
-            rxBufferSize = 8;
+        //try a network read to check buffer.
+        if(network_rx(networkRxBuffer,&reciveIP))
+        {
+            //print message
+            uprintf("\n\nRECEIVED: %s\n", networkRxBuffer);
+            //todo add pull in uart message so far and reprint it
+            //uartRxReprint(uartRxBuffer);
+            //uprintf("%s",uartRxBuffer);
+        //if uart has full string get it and place it in transmit buffer.
+        }
+        if(!uartRxReady())
+        {
+            //get user message to transmit
+            fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
+            fflush(stdin);
+            //check for preset transmissions
+            if(!strcmp(uartRxBuffer,"/zeros\n")) {
+                memset(uartRxBuffer, 0x00, 8);
+                rxBufferSize = 8;
+            }
+            else if (!strcmp(uartRxBuffer, "/ones\n")) {
+                memset(uartRxBuffer, 0xFF, 8);
+                rxBufferSize = 8;
+            }
+            else //if not in command list
+            {
+                rxBufferSize = (int) strlen(uartRxBuffer) - 1;
+            }
+            ERROR_HANDLE_FATAL(network_tx((uint8_t *) uartRxBuffer, rxBufferSize));
+            uprintf("Transmitted: %s", uartRxBuffer);
         }
         else if (!strcmp(uartRxBuffer, "/ones\n")) {
             memset(uartRxBuffer, 0xFF, 8);
