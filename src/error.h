@@ -48,13 +48,12 @@ typedef enum
     ERROR_CODE_NETWORK_NOT_INITIALIZED,                         // 0x10
     ERROR_CODE_NETWORK_ALREADY_INITIALIZED,                     // 0x11
     ERROR_CODE_NETWORK_MSG_QUEUE_FULL,                          // 0x12
-    ERROR_CODE_NETWORK_MSG_QUEUE_EMPTY,                          // 0x13
-    ERROR_CODE_NETWORK_MSG_POP_FAILURE,                          // 0x14
+    ERROR_CODE_NETWORK_MSG_POP_FAILURE,                         // 0x13
     
-    ERROR_CODE_DRIVER_TIMER_HB_NOT_INITIALIZED,                 // 0x15
-    ERROR_CODE_DRIVER_TIMER_HB_ALREADY_INITIALIZED,              // 0x16
+    ERROR_CODE_DRIVER_TIMER_HB_NOT_INITIALIZED,                 // 0x14
+    ERROR_CODE_DRIVER_TIMER_HB_ALREADY_INITIALIZED,             // 0x15
 
-    ERROR_CODE_INVALID_MANCHESTER_RECEIVED              // 0x17
+    ERROR_CODE_INVALID_MANCHESTER_RECEIVED                      // 0x16
 
 
 } ERROR_CODE;

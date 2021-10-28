@@ -7,19 +7,22 @@
 #include "state.h"
 #include "hb_timer.h"
 
+
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
-#define MSG_QUEUE_SIZE                  (10)
+
 #define HALF_BIT_PERIOD_US              (500)
-
-#define MAX_MESSAGE_SIZE                (255)
-#define MAX_FRAME_SIZE                  (MAX_MESSAGE_SIZE + sizeof(msg_header_t) + sizeof(msg_trailer_t))
-
-#define MAX_MESSAGE_SIZE_MANCHESTER     (MAX_MESSAGE_SIZE * 2)
 
 #define LOCAL_MACHINE_ADDRESS           (0x23) //TODO changeme if needed
 #define HEADER_PREAMBLE                 (0x55)
 #define PROTOCOL_VERSION                (0x01)
+
+#define MAX_MESSAGE_SIZE                (255)
+#define MAX_FRAME_SIZE                  (MAX_MESSAGE_SIZE + sizeof(frame_header_t) + sizeof(frame_trailer_t))
+#define MAX_FRAME_SIZE_MANCHESTER       (MAX_FRAME_SIZE * 2)
+
+#define TX_QUEUE_SIZE                   (10)
+#define RX_QUEUE_SIZE                   (10)
 
 // #define NETWORK_TX_DBG
 // #define MANCHESTER_DBG
@@ -29,31 +32,47 @@
  */
 static bool network_is_init = false;
 
+
 /**
- * Message node for the network's circular message queue
+ * Node structure for the network's circular queues
  */
 typedef struct
 {
-    char buffer[MAX_MESSAGE_SIZE_MANCHESTER];
+    char buffer[MAX_FRAME_SIZE_MANCHESTER];
     size_t size;
-} msg_queue_node_t;
+} queue_node_t;
 
 
 /**
- * Network circular message queue.
- */
-static msg_queue_node_t msg_queue[MSG_QUEUE_SIZE];
-
-/**
- * References the index of the location where the next element will be pushed
+ * Transmit queue variables
+ *
+ * NOTE:
+ * Push index references the index of the location where the next element will be pushed
  * onto the queue
+ *
+ * NOTE:
+ * Pop index references the index of the most recently popped element of the queue
  */
-static int push_idx = 1;
+static queue_node_t tx_queue[TX_QUEUE_SIZE];
+static unsigned int tx_queue_push_idx = 1;
+static unsigned int tx_queue_pop_idx = 0;
+
 
 /**
- * References the index of the most recently popped element of the queue
+ * Receive queue variables
+ *
+ * NOTE:
+ * Push index references the index of the location where the next element will be pushed
+ * onto the queue
+ *
+ * NOTE:
+ * Pop index references the index of the most recently popped element of the queue
  */
-static int pop_idx = 0;
+static queue_node_t rx_queue[RX_QUEUE_SIZE];
+static unsigned int rx_queue_push_idx = 1;
+static unsigned int rx_queue_pop_idx = 0;
+static unsigned int rx_queue_push_bit_idx = 0;
+static unsigned int rx_queue_push_byte_idx = 0;
 
 
 /**
@@ -81,6 +100,16 @@ ERROR_CODE network_init()
     GPIOC->MODER &= ~GPIO_MODER_MODER11;
     GPIOC->MODER |= 0b01 << GPIO_MODER_MODER11_Pos; //Set PC11 as output
 
+    // zero the receive queue so we don't have to do this in an ISR
+    for (int i = 0; i < RX_QUEUE_SIZE; i++)
+    {
+        memset(rx_queue[i].buffer, 0, MAX_FRAME_SIZE_MANCHESTER);
+    }
+
+    // push the first bit (preamble bit) onto the rx queue since this is
+    // normally handled by _push() but that neither have been called yet
+    network_rx_queue_push_bit(1);
+
     network_is_init = true;
 
     RETURN_NO_ERROR();
@@ -107,14 +136,15 @@ static void printBytesHex(char * name, uint8_t * bytes, size_t size)
 
 
 /**
- * Adds a buffer to a message queue and attempts to begin transmission.
+ * Queues a frame in the transmit queue and attempts to begin transmission.
  *
+ * @param   [in]    dest    The destination address of the message
  * @param   [in]    buffer  The buffer to transmit
  * @param   [in]    size    The size of the buffer in bytes
  *
  * @return  Error code
  */
-ERROR_CODE network_tx(uint8_t * buffer, size_t size)
+ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
 {
     // throw an error if the network is not initialized
     if (!network_is_init)
@@ -122,35 +152,35 @@ ERROR_CODE network_tx(uint8_t * buffer, size_t size)
         THROW_ERROR(ERROR_CODE_NETWORK_NOT_INITIALIZED);
     }
 
-    // TODO: This needs to be fixed to accurately calculate the number of
-    //       messages required for transmission
-    // unsigned int availableMsgs = MSG_QUEUE_SIZE - network_msg_queue_count();
-    // if ((size / MAX_MESSAGE_SIZE) <= availableMsgs)
-    // {
-    //     THROW_ERROR(ERROR_CODE_NETWORK_MSG_QUEUE_FULL);
-    // }
+    frame_t frame = {
+        .header = {
+            .preamble = HEADER_PREAMBLE,
+            .version = PROTOCOL_VERSION,
+            .source = LOCAL_MACHINE_ADDRESS,
+            .destination = dest,
+            .length = 0x0,
+            .crc_flag = 0x01
+        },
+        .message = (char *) buffer,
+        .trailer = {
+            .crc8_fcs = 0x00
+        }
+    };
 
     unsigned int queued_bytes = 0;
-    unsigned char manchester[MAX_MESSAGE_SIZE_MANCHESTER];
-
-
-    msg_frame_t frame = {{HEADER_PREAMBLE, PROTOCOL_VERSION, LOCAL_MACHINE_ADDRESS, 0x0, 0x0, 0x01}, NULL, {0x00}};
-
-    //TODO set dest IP
-    frame.header.destination = 0x00;
+    unsigned char manchester[MAX_FRAME_SIZE_MANCHESTER];
 
     // break buffer into chunks and queue
     while (size - queued_bytes)
     {
-        frame.message = buffer + queued_bytes;
-
         //TODO set trailer with big brain CRC algorithm
         frame.trailer.crc8_fcs = 0x00;
-
         frame.header.length = MIN(MAX_MESSAGE_SIZE, size - queued_bytes);
 
-        unsigned int manchesterSize = network_encode_frame_manchester(manchester, &frame);
+        frame.message = (char *) buffer + queued_bytes;
 
+        // encode in manchester
+        unsigned int manchester_size = network_encode_frame_manchester(manchester, &frame);
 
         #ifdef NETWORK_TX_DBG
             printBytesHex("ORIGINAL HEADER", (uint8_t *) &frame.header, sizeof(msg_header_t));
@@ -166,8 +196,7 @@ ERROR_CODE network_tx(uint8_t * buffer, size_t size)
             printBytesHex("DECODED TRAILER", (uint8_t *) &retFrame.trailer, sizeof(msg_trailer_t));
         #endif
 
-
-        if (!network_msg_queue_push(manchester, manchesterSize))
+        if (!network_tx_queue_push(manchester, manchester_size))
         {
             THROW_ERROR(ERROR_CODE_NETWORK_MSG_QUEUE_FULL);
         }
@@ -195,7 +224,7 @@ ERROR_CODE network_start_tx()
         THROW_ERROR(ERROR_CODE_NETWORK_NOT_INITIALIZED);
     }
 
-    if (!network_msg_queue_is_empty() && (state_get() == IDLE))
+    if ( !network_tx_queue_is_empty() && ( state_get() == IDLE))
     {
         ELEVATE_IF_ERROR(hb_timer_reset_and_start());
     }
@@ -205,44 +234,244 @@ ERROR_CODE network_start_tx()
 
 
 /**
- * Determines whether the network's message queue is full
+ * Determines whether the network's transmit queue is full
  *
  * @return  True if the queue is full, false otherwise.
  */
-bool network_msg_queue_is_full()
+bool network_tx_queue_is_full()
 {
-    return pop_idx == push_idx;
+    return tx_queue_pop_idx == tx_queue_push_idx;
 }
 
 
 /**
- * Determines whether the network's message queue is full
+ * Determines whether the network's transmit queue is full
  *
  * @return  True if the queue is full, false otherwise.
  */
-bool network_msg_queue_is_empty()
+bool network_tx_queue_is_empty()
 {
-    return (pop_idx + 1) % MSG_QUEUE_SIZE == push_idx;
+    return ( tx_queue_pop_idx + 1) % TX_QUEUE_SIZE == tx_queue_push_idx;
 }
 
 
 /**
- * Gets the number of messages in the 
- *  queue
+ * Gets the number of messages in the queue
  *
  * @return  The number of messages in the message queue
  */
-unsigned int network_msg_queue_count()
+unsigned int network_tx_queue_count()
 {
-    if (push_idx > pop_idx)
+    if ( tx_queue_push_idx > tx_queue_pop_idx)
     {
-        return push_idx - pop_idx - 1;
+        return tx_queue_push_idx - tx_queue_pop_idx - 1;
     }
     else
     {
-        return (push_idx + MSG_QUEUE_SIZE) - pop_idx - 1;
+        return ( tx_queue_push_idx + TX_QUEUE_SIZE) - tx_queue_pop_idx - 1;
+    }
+}
+
+/**
+ * Pushes an element into this network's transmit queue
+ *
+ * @param   [in]    buffer  The buffer to enqueue
+ * @param   [in]    size    The size of the buffer
+ *
+ * @return  False if the transmit queue is full, true otherwise
+ */
+static bool network_tx_queue_push(uint8_t * buffer, size_t size)
+{
+    // return false if the queue is full
+    if ( network_tx_queue_is_full())
+    {
+        return false;
     }
 
+    // it is important that we make a copy of the buffer in the queue,
+    // otherwise we risk modifying the data before it can be transmitted
+    memcpy( tx_queue[tx_queue_push_idx].buffer, buffer, size);
+    tx_queue[tx_queue_push_idx].size = size;
+
+    tx_queue_push_idx = ( tx_queue_push_idx + 1) % TX_QUEUE_SIZE;
+
+    return true;
+}
+
+
+/**
+ * Pops an element from this network's transmit queue
+ *
+ * @return True if an element is successfully popped, false otherwise
+ */
+static bool network_tx_queue_pop()
+{
+    // return false if the queue is empty (cannot pop element)
+    if ( network_tx_queue_is_empty())
+    {
+        return false;
+    }
+
+    tx_queue_pop_idx = ( tx_queue_pop_idx + 1) % TX_QUEUE_SIZE;
+    return true;
+}
+
+
+/**
+ * Determines whether the network's receive queue is full
+ *
+ * @return  True if the queue is full, false otherwise.
+ */
+bool network_rx_queue_is_full()
+{
+    return rx_queue_pop_idx == rx_queue_push_idx;
+}
+
+
+/**
+ * Determines whether the network's receive queue is full
+ *
+ * @return  True if the queue is full, false otherwise.
+ */
+bool network_rx_queue_is_empty()
+{
+    return ( rx_queue_pop_idx + 1) % TX_QUEUE_SIZE == rx_queue_push_idx;
+}
+
+
+/**
+ * Gets the number of messages in the receive queue
+ *
+ * @return  The number of messages in the message queue
+ */
+unsigned int network_rx_queue_count()
+{
+    if ( rx_queue_push_idx > rx_queue_pop_idx)
+    {
+        return rx_queue_push_idx - rx_queue_pop_idx - 1;
+    }
+    else
+    {
+        return ( rx_queue_push_idx + RX_QUEUE_SIZE) - rx_queue_pop_idx - 1;
+    }
+}
+
+
+/**
+ * Resets the "under-construction" element in the receive queue.
+ */
+void network_rx_queue_reset()
+{
+    rx_queue_push_byte_idx = 0;
+    rx_queue_push_bit_idx = 0;
+}
+
+
+/**
+ * Pushes a singular bit into the "under-construction" element in the
+ * receive queue.
+ *
+ * @param   [in]    bit     The bit to push
+ *
+ * @return  True if the bit is added successfully, false otherwise
+ */
+bool network_rx_queue_push_bit(bool bit)
+{
+    // fail to add bit if it lands outside the buffer
+    if ((rx_queue_push_byte_idx * 8 + rx_queue_push_bit_idx) >
+        (MAX_FRAME_SIZE_MANCHESTER * 8))
+    {
+        return 0;
+    }
+
+    // push bit into buffer
+    rx_queue[rx_queue_push_idx].buffer[rx_queue_push_byte_idx] |=
+        bit << (7 - rx_queue_push_bit_idx);
+
+    if (++rx_queue_push_bit_idx > 7)
+    {
+        rx_queue_push_bit_idx = 0;
+        rx_queue_push_byte_idx++;
+    }
+
+    return 1;
+}
+
+/**
+ * Fetches the value of the bit that was most recently pushed into the
+ * "under-construction" element of the receive queue
+ *
+ * @return  The value of the most recently pushed bit
+ */
+bool network_rx_queue_get_last_bit()
+{
+    // the last byte index will be the same as the push byte index unless we're
+    // on the zeroth bit index, in which case the last byte index was one less
+    unsigned int last_byte_idx = rx_queue_push_byte_idx -
+        (rx_queue_push_bit_idx == 0);
+
+    unsigned int last_bit_idx = (rx_queue_push_bit_idx - 1) % 8;
+
+    return rx_queue[rx_queue_push_idx].buffer[last_byte_idx] &
+        (0b01 << (7 - last_bit_idx));
+}
+
+/**
+ * Formally pushes an "under-construction" element into the receive queue
+ *
+ * @return  True if the element pushes successfully, false otherwise
+ */
+bool network_rx_queue_push()
+{
+    // fail if the queue is full and reset push byte/bit values to zero
+    // so the old message can be written over again
+    if (network_rx_queue_is_full())
+    {
+        network_rx_queue_reset();
+        return 0;
+    }
+
+    // fail if there is no element "under-construction"
+    if ((rx_queue_push_byte_idx == 0) && (rx_queue_push_bit_idx <= 1))
+    {
+        return 0;
+    }
+
+    // set "under-construction" element size
+    rx_queue[rx_queue_push_idx].size = rx_queue_push_byte_idx;
+
+    // increment the push index and reset bit/byte indices
+    rx_queue_push_idx = (rx_queue_push_idx + 1) % 8;
+    rx_queue_push_byte_idx = 0;
+    rx_queue_push_bit_idx = 0;
+
+    // push a 1 because the first bit will always be 1 with an 0x55 preamble
+    network_rx_queue_push_bit(1);
+
+    return 1;
+}
+
+
+/**
+ * Pushes an element from the receive queue
+ *
+ * @return  True if the element pushes successfully, false otherwise
+ */
+bool network_rx_queue_pop()
+{
+    // fail if the queue is empty
+    if (network_rx_queue_is_empty())
+    {
+        return 0;
+    }
+
+    // zero out popped element
+    memset(rx_queue[rx_queue_pop_idx].buffer, 0, MAX_FRAME_SIZE_MANCHESTER);
+
+    // increase popped element index
+    rx_queue_pop_idx = (rx_queue_pop_idx + 1) % 8;
+
+    return 1;
 }
 
 /**
@@ -252,12 +481,12 @@ unsigned int network_msg_queue_count()
  * @param   [in]    manchester  The input buffer of a manchester encoded frame
  * @return  error code
  */
-static ERROR_CODE network_decode_manchester_frame(msg_frame_t * frame, uint8_t * manchester)
+static ERROR_CODE network_decode_manchester_frame( frame_t * frame, uint8_t * manchester)
 {
     ERROR_HANDLE_NON_FATAL(network_decode_manchester_header(&frame->header, manchester));
     return network_decode_manchester_frame_message_trailer(
         frame,
-        manchester + sizeof(msg_header_t) * 2
+        manchester + sizeof(frame_header_t) * 2
     );
     RETURN_NO_ERROR();  
 }
@@ -269,9 +498,9 @@ static ERROR_CODE network_decode_manchester_frame(msg_frame_t * frame, uint8_t *
  * @param   [in]    manchester  Pointer to the start of a Manchester encoded frame header
  * @return  error code
  */
-static ERROR_CODE network_decode_manchester_header(msg_header_t * header, uint8_t * manchester)
+static ERROR_CODE network_decode_manchester_header( frame_header_t * header, uint8_t * manchester)
 {
-    return network_decode_manchester((uint8_t *) header, manchester, sizeof(msg_header_t));
+    return network_decode_manchester((uint8_t *) header, manchester, sizeof(frame_header_t));
 }
 
 /**
@@ -281,7 +510,7 @@ static ERROR_CODE network_decode_manchester_header(msg_header_t * header, uint8_
  * @param   [in]    manchester  Pointer to the start of the message in a Manchester encoded frame
  * @return  error code
  */
-static ERROR_CODE network_decode_manchester_frame_message_trailer(msg_frame_t * frame, uint8_t * manchester)
+static ERROR_CODE network_decode_manchester_frame_message_trailer( frame_t * frame, uint8_t * manchester)
 {
     ERROR_HANDLE_NON_FATAL(network_decode_manchester(
         (uint8_t *)frame->message, 
@@ -291,7 +520,7 @@ static ERROR_CODE network_decode_manchester_frame_message_trailer(msg_frame_t * 
     ERROR_HANDLE_NON_FATAL(network_decode_manchester(
         (uint8_t *)&frame->trailer, 
         manchester + frame->header.length * 2, 
-        sizeof(msg_trailer_t))
+        sizeof(frame_trailer_t))
     );
     RETURN_NO_ERROR();
 }
@@ -304,12 +533,12 @@ static ERROR_CODE network_decode_manchester_frame_message_trailer(msg_frame_t * 
 
  * @return  number of bytes filled into the manchester buffer
  */
-static unsigned int network_encode_frame_manchester(uint8_t * manchester, msg_frame_t * frame)
+static unsigned int network_encode_frame_manchester( uint8_t * manchester, frame_t * frame)
 {
     unsigned int size = 0;
-    size += network_encode_manchester(manchester,  (uint8_t *) &(frame->header), sizeof(msg_header_t));
+    size += network_encode_manchester(manchester,  (uint8_t *) &(frame->header), sizeof(frame_header_t));
     size += network_encode_manchester(manchester + size, frame->message, frame->header.length);
-    size += network_encode_manchester(manchester + size, (uint8_t *) &(frame->trailer), sizeof(msg_trailer_t));
+    size += network_encode_manchester(manchester + size, (uint8_t *) &(frame->trailer), sizeof(frame_trailer_t));
     return size;
 }
 
@@ -410,50 +639,6 @@ network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
 
 
 /**
- * Pushes an element into this network's circular queue
- *
- * @param   [in]    buffer  The buffer to enqueue
- * @param   [in]    size    The size of the buffer
- *
- * @return  False if the message queue is full, true otherwise
- */
-static bool network_msg_queue_push(uint8_t * buffer, size_t size)
-{
-    // return false if the queue is full
-    if (network_msg_queue_is_full())
-    {
-        return false;
-    }
-
-    // it is important that we make a copy of the buffer in the queue,
-    // otherwise we risk modifying the data before it can be transmitted
-    memcpy(msg_queue[push_idx].buffer, buffer, size);
-    msg_queue[push_idx].size = size;
-
-    push_idx = ( push_idx + 1) % MSG_QUEUE_SIZE;
-
-    return true;
-}
-
-
-/**
- * Pops an element from this network's circular queue
- *
- * @return True if an element is successfully popped, false otherwise
- */
-static bool network_msg_queue_pop()
-{
-    // return false if the queue is empty (cannot pop element)
-    if (network_msg_queue_is_empty())
-    {
-        return false;
-    }
-
-    pop_idx = (pop_idx + 1) % MSG_QUEUE_SIZE;
-    return true;
-}
-
-/**
  * IRQ Handler for hb_timer
  */
 void TIM4_IRQHandler()
@@ -468,7 +653,7 @@ void TIM4_IRQHandler()
         TIM4->SR &= ~( TIM_SR_UIF );
 
         // Get the message index of the circular buffer
-        int msg_idx = (pop_idx + 1) % MSG_QUEUE_SIZE;
+        int msg_idx = ( tx_queue_pop_idx + 1) % TX_QUEUE_SIZE;
 
         // Get the current state
         STATE_TYPE state = state_get();
@@ -477,7 +662,7 @@ void TIM4_IRQHandler()
         {
             hb_timer_reset_and_start();
 
-            if(byteIdx == msg_queue[msg_idx].size)
+            if( byteIdx == tx_queue[msg_idx].size)
             {
                 // The transmission of the message is complete
 
@@ -487,7 +672,7 @@ void TIM4_IRQHandler()
                 byteIdx = 0;
                 bitIdx = 0;
                 // Should always return True because when we call this method there is always a message present
-                bool status = network_msg_queue_pop();
+                bool status = network_tx_queue_pop();
                 if (!status)
                 {
                     ERROR_HANDLE_NON_FATAL(ERROR_CODE_NETWORK_MSG_POP_FAILURE)
@@ -499,7 +684,7 @@ void TIM4_IRQHandler()
             } else
             {
                 // Get the next bit from the message buffer
-                bool bit = msg_queue[msg_idx].buffer[byteIdx] >> (7 - bitIdx) & 0b01;
+                bool bit = tx_queue[msg_idx].buffer[byteIdx] >> ( 7 - bitIdx) & 0b01;
 
                 if(bit == 1)
                 {
