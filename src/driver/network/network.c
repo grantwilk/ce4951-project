@@ -230,8 +230,8 @@ bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr)
         ERROR_HANDLE_NON_FATAL(error);
         if (!error)
         {
-            if (sizeof(frame_header_t) + (frame.header.length) + sizeof(frame_trailer_t) != element->size / 2  
-                || frame.header.preamble != HEADER_PREAMBLE)
+            if ((sizeof(frame_header_t) + (frame.header.length) + sizeof(frame_trailer_t) != element->size / 2)
+                || (frame.header.preamble != HEADER_PREAMBLE))
             {
                 ERROR_HANDLE_NON_FATAL(ERROR_CODE_MALFORMED_MESSAGE_RECEIVED);
             } 
