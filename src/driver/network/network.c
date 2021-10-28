@@ -98,7 +98,8 @@ ERROR_CODE network_init()
     GPIOC->ODR |= GPIO_ODR_OD11;
 
     GPIOC->MODER &= ~GPIO_MODER_MODER11;
-    GPIOC->MODER |= 0b01 << GPIO_MODER_MODER11_Pos; //Set PC11 as output
+    GPIOC->MODER |= 0b01 << GPIO_MODER_MODER11_Pos;
+    GPIOC->OTYPER |= GPIO_OTYPER_OT11;
 
     // zero the receive queue so we don't have to do this in an ISR
     for (int i = 0; i < RX_QUEUE_SIZE; i++)
@@ -279,6 +280,7 @@ ERROR_CODE network_start_tx()
 
     if ( !network_tx_queue_is_empty() && ( state_get() == IDLE ))
     {
+
         ELEVATE_IF_ERROR(hb_timer_reset_and_start());
     }
 

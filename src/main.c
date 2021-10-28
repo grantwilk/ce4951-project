@@ -79,7 +79,7 @@ int main( void )
     char networkRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
 
     uint8_t receiveAddr;
-    int rxBufferSize;
+    unsigned int rxBufferSize;
 
     // TODO: These line is a temporary fix. The first transmission after reset
     //       causes a collision. By transmitting one byte at startup, we collide

@@ -75,8 +75,8 @@ ERROR_CODE hb_timer_reset_and_start()
 
     if (!hb_timer_is_running)
     {
-      TIM4->CR1 |= TIM_CR1_CEN;
-      hb_timer_is_running = true;
+        TIM4->CR1 |= TIM_CR1_CEN;
+        hb_timer_is_running = true;
     }
 
     RETURN_NO_ERROR();
