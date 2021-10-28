@@ -211,6 +211,59 @@ ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
 
 
 /**
+ * Receive a single message from the network queue, if there is one available
+ *
+ * @param   [out]   messageBuf  buffer of size 256 to place the message in (MAX_MESSAGE_SIZE + 1 for null terminator)
+ * @param   [out]   sourceIp    the address of the source machine of the message
+ *
+ * @return  bool if a valid message was placed in messageBuf
+ */
+bool network_rx(uint8_t * messageBuf, uint8_t * sourceIp)
+{
+    while (!network_rx_queue_is_empty())
+    {
+        
+        queue_node_t * element = &rx_queue[(rx_queue_pop_idx + 1) % RX_QUEUE_SIZE];
+        frame_t frame = {.message = messageBuf};
+
+        ERROR_CODE error = network_decode_manchester_header(&frame.header, element->buffer);
+        ERROR_HANDLE_NON_FATAL(error);
+        if (!error)
+        {
+            if (sizeof(frame_header_t) + (frame.header.length) + sizeof(frame_trailer_t) != element->size / 2  
+                || frame.header.preamble != HEADER_PREAMBLE)
+            {
+                ERROR_HANDLE_NON_FATAL(ERROR_CODE_MALFORMED_MESSAGE_RECEIVED);
+            } 
+            else if (frame.header.version != PROTOCOL_VERSION)
+            {
+                ERROR_HANDLE_NON_FATAL(ERROR_CODE_WRONG_MESSAGE_VERSION_RECEIVED);
+            }
+            else //if (frame.header.destination != LOCAL_MACHINE_ADDRESS) <= uncomment to only read messages matching my address
+            { // header appears valid, continue decoding frame
+                error = network_decode_manchester_frame_message_trailer(&frame, element->buffer + sizeof(frame_header_t) * 2);
+                ERROR_HANDLE_NON_FATAL(error);
+                if (!error)
+                {
+                    //todo validate CRC of message
+
+                    network_rx_queue_pop();
+                    frame.message[frame.header.length] = 0; // end with null termination
+                    if (sourceIp != NULL)
+                    {
+                        *sourceIp = frame.header.source;
+                    }
+                    return true;
+                } 
+            }
+        }
+        network_rx_queue_pop();
+    }
+    return false;
+}
+
+
+/**
  * Signals the network component to begin transmitting messages from its
  * internal message queue
  *
