@@ -485,7 +485,7 @@ bool network_rx_queue_push()
     }
 
     // fail if there is no element "under-construction"
-    if ((rx_queue_push_byte_idx == 0) && (rx_queue_push_bit_idx <= 1))
+    if (rx_queue_push_byte_idx < 1)
     {
         return 0;
     }
