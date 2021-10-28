@@ -146,7 +146,7 @@ ERROR_CODE timeout_stop()
     }
 
     // throw an error if the timeout timer is not running
-    if ( timeout_timer_is_running )
+    if ( !timeout_timer_is_running )
     {
         THROW_ERROR( ERROR_CODE_DRIVER_TIMER_TIMEOUT_NOT_RUNNING );
     }
@@ -222,6 +222,8 @@ ERROR_CODE timeout_set_timeout( uint16_t us )
  */
 void TIM3_IRQHandler()
 {
+
+
     if ( TIM3->SR & TIM_SR_UIF )
     {
         // clear update interrupt
@@ -235,21 +237,23 @@ void TIM3_IRQHandler()
         if ( network_input )
         {
             // uprintf("IDLE\n");
+            ERROR_HANDLE_NON_FATAL( timeout_stop() );
             ERROR_HANDLE_NON_FATAL( state_set( IDLE ) );
             //network_rx_queue_push(); // try to push the queue
-            timeout_stop();
         }
         else
         {
             // uprintf("COLLISION\n");
+            ERROR_HANDLE_NON_FATAL( timeout_stop() );
             ERROR_HANDLE_NON_FATAL( state_set( COLLISION ) );
-            timeout_stop();
         }
     } else if ( TIM3->SR & TIM_SR_CC1IF )
     {
         // Clear the CC1IF Interrupt
         TIM3->SR &= ~( TIM_SR_CC1IF );
-        uprintf("CC1IF\n");
+
+        uprintf("CCR1\n");
+
         // push last bit to the rx_queue
         //bool last_bit = network_rx_queue_get_last_bit();
         //network_rx_queue_push_bit(last_bit);
