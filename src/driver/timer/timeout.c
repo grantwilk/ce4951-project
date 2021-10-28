@@ -246,6 +246,7 @@ void TIM3_IRQHandler()
             // uprintf("COLLISION\n");
             ERROR_HANDLE_NON_FATAL( timeout_stop() );
             ERROR_HANDLE_NON_FATAL( state_set( COLLISION ) );
+            network_rx_queue_reset();
         }
     } else if ( TIM3->SR & TIM_SR_CC1IF )
     {
