@@ -77,9 +77,9 @@ int main( void )
     char uartRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
     // network recive buffer
     char networkRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
-    //standard 255.255.255.0 IP
-    uint8_t receiveAddr = (0xFF);
-    int rxBufferSize = 0;
+
+    uint8_t receiveAddr;
+    int rxBufferSize;
 
     // TODO: These line is a temporary fix. The first transmission after reset
     //       causes a collision. By transmitting one byte at startup, we collide
