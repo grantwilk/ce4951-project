@@ -78,7 +78,7 @@ int main( void )
     // network recive buffer
     char networkRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
     //standard 255.255.255.0 IP
-    uint8_t reciveIP = (0xFF);
+    uint8_t receiveAddr = (0xFF);
     int rxBufferSize = 0;
 
     // TODO: These line is a temporary fix. The first transmission after reset
@@ -90,16 +90,16 @@ int main( void )
     while(1)
     {
         //try a network read to check buffer.
-        if(network_rx(networkRxBuffer,&reciveIP))
+        if(network_rx(networkRxBuffer,&receiveAddr))
         {
             //print message
             uprintf("\n\nRECEIVED: %s\n", networkRxBuffer);
             //todo add pull in uart message so far and reprint it
             //uartRxReprint(uartRxBuffer);
             //uprintf("%s",uartRxBuffer);
-        //if uart has full string get it and place it in transmit buffer.
         }
-        if(!uartRxReady())
+        //if uart has full string get it and place it in transmit buffer.
+        if(uartRxReady())
         {
             //get user message to transmit
             fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
@@ -117,19 +117,14 @@ int main( void )
             {
                 rxBufferSize = (int) strlen(uartRxBuffer) - 1;
             }
-            ERROR_HANDLE_FATAL(network_tx((uint8_t *) uartRxBuffer, rxBufferSize));
-            uprintf("Transmitted: %s", uartRxBuffer);
-        }
-        else if (!strcmp(uartRxBuffer, "/ones\n")) {
-            memset(uartRxBuffer, 0xFF, 8);
-            rxBufferSize = 8;
+
+            uprintf("Transmitting Message: %s\n", uartRxBuffer);
+            ERROR_HANDLE_FATAL(network_tx(0x00, (uint8_t *) uartRxBuffer, rxBufferSize));
         }
         else
         {
             rxBufferSize = (int) strlen(uartRxBuffer) - 1;
         }
-        uprintf("Transmitting Message: %s\n", uartRxBuffer);
-        ERROR_HANDLE_FATAL(network_tx(0x00, (uint8_t *) uartRxBuffer, rxBufferSize));
     }
 }
 
