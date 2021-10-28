@@ -88,17 +88,13 @@ int main( void )
     GPIOC->ODR |= GPIO_ODR_OD11;
     network_rx_queue_reset();
 
-    uprintf(">>");
-
     while(1)
     {
         //try a network read to check buffer.
-        if(network_rx(networkRxBuffer,&receiveAddr))
+        if(network_rx((uint8_t *) networkRxBuffer, &receiveAddr))
         {
             //print message
-            uprintf("\n\nRECEIVED: \"%s\" from %d\n", networkRxBuffer, receiveAddr);
-
-            uprintf(">>");
+            uprintf("[ From 0x%02X: %s ]\n", receiveAddr, networkRxBuffer);
             uartRxReprint();
         }
         //if uart has full string get it and place it in transmit buffer.
@@ -107,23 +103,23 @@ int main( void )
             //get user message to transmit
             fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
             fflush(stdin);
+
+            // remove newline from message
+            uartRxBuffer[strlen(uartRxBuffer) - 1] = 0x00;
+            rxBufferSize = strlen(uartRxBuffer);
+
             //check for preset transmissions
-            if(!strcmp(uartRxBuffer,"/zeros\n")) {
+            if(!strcmp(uartRxBuffer,"/zeros")) {
                 memset(uartRxBuffer, 0x00, 8);
                 rxBufferSize = 8;
             }
-            else if (!strcmp(uartRxBuffer, "/ones\n")) {
+            else if (!strcmp(uartRxBuffer, "/ones")) {
                 memset(uartRxBuffer, 0xFF, 8);
                 rxBufferSize = 8;
             }
-            else //if not in command list
-            {
-                rxBufferSize = (int) strlen(uartRxBuffer) - 1;
-            }
 
-            uprintf("Transmitting Message: %s\n", uartRxBuffer);
+            uprintf("[ To 0x%02X: %s ]\n", 0x00, uartRxBuffer);
             ERROR_HANDLE_FATAL(network_tx(0x00, (uint8_t *) uartRxBuffer, rxBufferSize));
-            uprintf(">>");
         }
     }
 }
