@@ -49,8 +49,6 @@ static bool uartIsInit = false;
 
 static circular_queue input_buffer;
 
-static char lastchar;
-
 
 /* ---------------------------------- Constructors / Destructors -------------------------------- */
 
@@ -204,7 +202,7 @@ uartRxBuffer
 bool
 uartRxReady()
 {
-    return lastchar=='\n';
+    return !cq_isempty(&input_buffer) && input_buffer.buffer[input_buffer.puller] =='\n';
 }
 
 /**
@@ -344,8 +342,7 @@ void USART2_IRQHandler(void) {
     if ((USART2->SR & USART_SR_RXNE) && !cq_isfull(&input_buffer)) {
         // read the RDR
         char c = USART2->DR;
-        // set lastchar
-        lastchar = c;
+
         // push the char in the RDR into the input buffer
         cq_push(&input_buffer, c);
 
