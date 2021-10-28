@@ -358,8 +358,18 @@ unsigned int network_rx_queue_count()
 
 
 /**
+ * Resets the "under-construction" element in the receive queue.
+ */
+void network_rx_queue_reset()
+{
+    rx_queue_push_byte_idx = 0;
+    rx_queue_push_bit_idx = 0;
+}
+
+
+/**
  * Pushes a singular bit into the "under-construction" element in the
- * receive queue
+ * receive queue.
  *
  * @param   [in]    bit     The bit to push
  *
@@ -417,8 +427,13 @@ bool network_rx_queue_push()
     // so the old message can be written over again
     if (network_rx_queue_is_full())
     {
-        rx_queue_push_byte_idx = 0;
-        rx_queue_push_bit_idx = 0;
+        network_rx_queue_reset();
+        return 0;
+    }
+
+    // fail if there is no element "under-construction"
+    if ((rx_queue_push_byte_idx == 0) && (rx_queue_push_bit_idx <= 1))
+    {
         return 0;
     }
 

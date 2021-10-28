@@ -43,6 +43,7 @@ static bool network_tx_queue_pop();
 bool network_rx_queue_is_full();
 bool network_rx_queue_is_empty();
 unsigned int network_rx_queue_count();
+void network_rx_queue_reset();
 bool network_rx_queue_push_bit(bool bit);
 bool network_rx_queue_get_last_bit();
 bool network_rx_queue_push();
