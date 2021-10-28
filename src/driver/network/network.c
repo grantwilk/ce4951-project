@@ -277,7 +277,7 @@ ERROR_CODE network_start_tx()
         THROW_ERROR(ERROR_CODE_NETWORK_NOT_INITIALIZED);
     }
 
-    if ( !network_tx_queue_is_empty() && ( state_get() == IDLE))
+    if ( !network_tx_queue_is_empty() && ( state_get() == IDLE ))
     {
         ELEVATE_IF_ERROR(hb_timer_reset_and_start());
     }
@@ -415,8 +415,10 @@ unsigned int network_rx_queue_count()
  */
 void network_rx_queue_reset()
 {
+    memset(rx_queue[rx_queue_push_idx].buffer, 0, rx_queue_push_byte_idx + 1);
     rx_queue_push_byte_idx = 0;
     rx_queue_push_bit_idx = 0;
+    network_rx_queue_push_bit(1);
 }
 
 
@@ -485,8 +487,9 @@ bool network_rx_queue_push()
     }
 
     // fail if there is no element "under-construction"
-    if (rx_queue_push_byte_idx < 1)
+    if (rx_queue_push_byte_idx < 7)
     {
+        network_rx_queue_reset();
         return 0;
     }
 
@@ -774,3 +777,4 @@ void TIM4_IRQHandler()
         }
     }
 }
+
