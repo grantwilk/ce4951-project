@@ -214,11 +214,11 @@ ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
  * Receive a single message from the network queue, if there is one available
  *
  * @param   [out]   messageBuf  buffer of size 256 to place the message in (MAX_MESSAGE_SIZE + 1 for null terminator)
- * @param   [out]   sourceIp    the address of the source machine of the message
+ * @param   [out]   sourceAddr    the address of the source machine of the message
  *
  * @return  bool if a valid message was placed in messageBuf
  */
-bool network_rx(uint8_t * messageBuf, uint8_t * sourceIp)
+bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr)
 {
     while (!network_rx_queue_is_empty())
     {
@@ -249,9 +249,9 @@ bool network_rx(uint8_t * messageBuf, uint8_t * sourceIp)
 
                     network_rx_queue_pop();
                     frame.message[frame.header.length] = 0; // end with null termination
-                    if (sourceIp != NULL)
+                    if (sourceAddr != NULL)
                     {
-                        *sourceIp = frame.header.source;
+                        *sourceAddr = frame.header.source;
                     }
                     return true;
                 } 

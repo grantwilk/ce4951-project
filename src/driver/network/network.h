@@ -32,7 +32,7 @@ typedef struct
 
 ERROR_CODE network_init();
 ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size);
-bool network_rx(uint8_t * messageBuf, uint8_t * sourceIp);
+bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr);
 ERROR_CODE network_start_tx();
 
 bool network_tx_queue_is_full();
