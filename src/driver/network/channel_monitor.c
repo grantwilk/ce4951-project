@@ -3,8 +3,11 @@
 #include "stm32f446xx.h"
 
 #include "channel_monitor.h"
+#include "error.h"
 #include "state.h"
 #include "timeout.h"
+#include "network.h"
+#include "uio.h"
 
 #define EXTI_15_10_NVIC 8
 
@@ -42,7 +45,7 @@ void EXTI15_10_IRQHandler()
 
         if (!timeout_is_running())
         {
-            timeout_start();
+            ERROR_HANDLE_NON_FATAL( timeout_start() );
         }
 
         EXTI->PR = EXTI_PR_PR12; //clear pending interrupt
@@ -51,5 +54,7 @@ void EXTI15_10_IRQHandler()
         {
             state_set(BUSY);
         }
+
+        network_rx_queue_push_bit(isHigh); // a rising edge sends a 1 bit
     }
 }
