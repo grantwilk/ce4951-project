@@ -236,7 +236,7 @@ void TIM3_IRQHandler()
         {
             // uprintf("IDLE\n");
             ERROR_HANDLE_NON_FATAL( state_set( IDLE ) );
-            network_rx_queue_push(); // try to push the queue
+            //network_rx_queue_push(); // try to push the queue
             timeout_stop();
         }
         else
@@ -247,9 +247,13 @@ void TIM3_IRQHandler()
         }
     } else if ( TIM3->SR & TIM_SR_CC1IF )
     {
+        // Clear the CC1IF Interrupt
+        TIM3->SR &= ~( TIM_SR_CC1IF );
+        uprintf("CC1IF\n");
         // push last bit to the rx_queue
-        bool last_bit = network_rx_queue_get_last_bit();
-        network_rx_queue_push_bit(last_bit);
+        //bool last_bit = network_rx_queue_get_last_bit();
+        //network_rx_queue_push_bit(last_bit);
+        //TIM3->DIER &= ~( TIM_DIER_CC1IE );
     }
 }
 
