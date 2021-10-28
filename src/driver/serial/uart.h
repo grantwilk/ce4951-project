@@ -18,6 +18,7 @@
 
 
 # include <stdint.h>
+# include <stdbool.h>
 # include "error.h"
 
 
@@ -86,6 +87,18 @@ uartRxBuffer
 );
 
 
+/**
+ * @brief   checks if last char recived is \n
+ * @return  bool if a string ending in a newline exists in the buffer
+ */
+bool 
+uartRxReady();
+
+/**
+ * allows for reprinting of message when message received in the middle of typing
+ */
+void uartRxReprint();
+
 /* -------------------------------------- Static Functions -------------------------------------- */
 
 
@@ -119,6 +132,9 @@ uartRxByte
     uint8_t 	*rxByte,
     uint16_t	timeout
 );
+
+
+
 
 
 /* ------------------------------------------- Footer ------------------------------------------- */
