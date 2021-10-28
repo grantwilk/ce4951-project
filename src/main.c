@@ -84,8 +84,9 @@ int main( void )
     // TODO: These line is a temporary fix. The first transmission after reset
     //       causes a collision. By transmitting one byte at startup, we collide
     //       on reset, which is more OK. Ideally this doesn't happen though.
-    GPIOC->ODR &= ~(GPIO_ODR_OD11);
-    GPIOC->ODR |= GPIO_ODR_OD11;
+    // GPIOC->ODR &= ~(GPIO_ODR_OD11);
+    // GPIOC->ODR |= GPIO_ODR_OD11;
+    uprintf(">>");
 
     while(1)
     {
@@ -93,10 +94,10 @@ int main( void )
         if(network_rx(networkRxBuffer,&receiveAddr))
         {
             //print message
-            uprintf("\n\nRECEIVED: %s\n", networkRxBuffer);
-            //todo add pull in uart message so far and reprint it
-            //uartRxReprint(uartRxBuffer);
-            //uprintf("%s",uartRxBuffer);
+            uprintf("\n\nRECEIVED: \"%s\" from %d\n", networkRxBuffer, receiveAddr);
+
+            uprintf(">>");
+            uartRxReprint();
         }
         //if uart has full string get it and place it in transmit buffer.
         if(uartRxReady())
@@ -120,10 +121,7 @@ int main( void )
 
             uprintf("Transmitting Message: %s\n", uartRxBuffer);
             ERROR_HANDLE_FATAL(network_tx(0x00, (uint8_t *) uartRxBuffer, rxBufferSize));
-        }
-        else
-        {
-            rxBufferSize = (int) strlen(uartRxBuffer) - 1;
+            uprintf(">>");
         }
     }
 }

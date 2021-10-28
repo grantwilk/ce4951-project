@@ -202,7 +202,7 @@ uartRxBuffer
 bool
 uartRxReady()
 {
-    return !cq_isempty(&input_buffer) && input_buffer.buffer[input_buffer.puller] =='\n';
+    return !cq_isempty(&input_buffer) && input_buffer.buffer[input_buffer.pusher - 1] =='\n';
 }
 
 /**
@@ -210,11 +210,17 @@ uartRxReady()
  * @param buffer for string placement
  * @return length of string
  */
-//int
-//uartRxReprint(char* buffer)
-//{
-//     cq_read(&input_buffer);
-//}
+
+void uartRxReprint()
+{
+    int i = input_buffer.puller;
+
+    while (i != input_buffer.pusher)
+    {
+        uartTxByte(input_buffer.buffer[i], 10000);
+        i = i + 1 % CIRCULAR_QUEUE_SIZE;
+    }
+}
 
 /* -------------------------------------- Static Functions -------------------------------------- */
 

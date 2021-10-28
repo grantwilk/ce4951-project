@@ -89,19 +89,15 @@ uartRxBuffer
 
 /**
  * @brief   checks if last char recived is \n
- * @return  1 if input has been confirmed, 0 if not.
+ * @return  bool if a string ending in a newline exists in the buffer
  */
-bool
-uartRxReady
-();
+bool 
+uartRxReady();
 
 /**
  * allows for reprinting of message when message received in the middle of typing
- * @param buffer for string placement
- * @return length of string
  */
-//int
-//uartRxReprint(char* buffer);
+void uartRxReprint();
 
 /* -------------------------------------- Static Functions -------------------------------------- */
 
