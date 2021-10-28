@@ -55,6 +55,6 @@ void EXTI15_10_IRQHandler()
             state_set(BUSY);
         }
 
-        //network_rx_queue_push_bit(isHigh); // a rising edge sends a 1 bit
+        network_rx_queue_push_bit(isHigh); // a rising edge sends a 1 bit
     }
 }
