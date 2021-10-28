@@ -15,6 +15,7 @@
 # include "main.h"
 # include "sysclock.h"
 # include "uio.h"
+# include "uart.h"
 
 # include "leds.h"
 # include "network.h"
@@ -72,36 +73,58 @@ int main( void )
     // set initial state to IDLE
     ERROR_HANDLE_FATAL( state_set( IDLE ) );
 
-    // UART user interface loop
+    // UART buffer
     char uartRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
-    int rxBufferSize = 0;
+    // network recive buffer
+    char networkRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
+
+    uint8_t receiveAddr;
+    int rxBufferSize;
 
     // TODO: These line is a temporary fix. The first transmission after reset
     //       causes a collision. By transmitting one byte at startup, we collide
     //       on reset, which is more OK. Ideally this doesn't happen though.
     GPIOC->ODR &= ~(GPIO_ODR_OD11);
     GPIOC->ODR |= GPIO_ODR_OD11;
+    network_rx_queue_reset();
+
+    uprintf(">>");
 
     while(1)
     {
-        uprintf(">> ");
-        fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
-        fflush(stdin);
-        uprintf("RECEIVED: %s", uartRxBuffer);
-        if(!strcmp(uartRxBuffer,"/zeros\n")) {
-            memset(uartRxBuffer, 0x00, 8);
-            rxBufferSize = 8;
-        }
-        else if (!strcmp(uartRxBuffer, "/ones\n")) {
-            memset(uartRxBuffer, 0xFF, 8);
-            rxBufferSize = 8;
-        }
-        else
+        //try a network read to check buffer.
+        if(network_rx(networkRxBuffer,&receiveAddr))
         {
-            rxBufferSize = (int) strlen(uartRxBuffer) - 1;
+            //print message
+            uprintf("\n\nRECEIVED: \"%s\" from %d\n", networkRxBuffer, receiveAddr);
+
+            uprintf(">>");
+            uartRxReprint();
         }
-        uprintf("Transmitting Message: %s\n", uartRxBuffer);
-        ERROR_HANDLE_FATAL(network_tx(0x00, (uint8_t *) uartRxBuffer, rxBufferSize));
+        //if uart has full string get it and place it in transmit buffer.
+        if(uartRxReady())
+        {
+            //get user message to transmit
+            fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
+            fflush(stdin);
+            //check for preset transmissions
+            if(!strcmp(uartRxBuffer,"/zeros\n")) {
+                memset(uartRxBuffer, 0x00, 8);
+                rxBufferSize = 8;
+            }
+            else if (!strcmp(uartRxBuffer, "/ones\n")) {
+                memset(uartRxBuffer, 0xFF, 8);
+                rxBufferSize = 8;
+            }
+            else //if not in command list
+            {
+                rxBufferSize = (int) strlen(uartRxBuffer) - 1;
+            }
+
+            uprintf("Transmitting Message: %s\n", uartRxBuffer);
+            ERROR_HANDLE_FATAL(network_tx(0x00, (uint8_t *) uartRxBuffer, rxBufferSize));
+            uprintf(">>");
+        }
     }
 }
 

@@ -195,6 +195,32 @@ uartRxBuffer
 	RETURN_NO_ERROR();
 }
 
+/**
+ * @brief   checks if last char recived is \n
+ * @return  bool
+ */
+bool
+uartRxReady()
+{
+    return !cq_isempty(&input_buffer) && input_buffer.buffer[input_buffer.pusher - 1] =='\n';
+}
+
+/**
+ * allows for reprinting of message when message received in the middle of typing
+ * @param buffer for string placement
+ * @return length of string
+ */
+
+void uartRxReprint()
+{
+    int i = input_buffer.puller;
+
+    while (i != input_buffer.pusher)
+    {
+        uartTxByte(input_buffer.buffer[i], 10000);
+        i = i + 1 % CIRCULAR_QUEUE_SIZE;
+    }
+}
 
 /* -------------------------------------- Static Functions -------------------------------------- */
 
@@ -279,6 +305,7 @@ uartRxByte
 
     RETURN_NO_ERROR();
 }
+
 
 /* ------------------------------------- Override Functions ------------------------------------- */
 

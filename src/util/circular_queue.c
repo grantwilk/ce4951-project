@@ -72,6 +72,16 @@ char cq_pull( circular_queue * cq ) {
 }
 
 /*
+Pulls the next element from the circular queue
+@ param cq - the circular queue to pull from
+@ return the character from the queue
+*/
+char cq_peek( circular_queue * cq ) {
+
+    return cq->buffer[(cq->puller)];
+}
+
+/*
 Clears all values from the circular queue
 @ param cq - the circular queue to clear
 @ return void
