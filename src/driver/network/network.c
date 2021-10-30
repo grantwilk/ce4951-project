@@ -694,7 +694,37 @@ network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
 
     return size * 2;
 }
+#define POLYNOMIAL 0b100000111
 
+uint8_t crc8_calculate(uint8_t * buffer, unsigned int size, uint8_t initialValue)
+{
+    uint8_t result = initialValue;
+
+    for (unsigned int byteIdx = 0; byteIdx < size; ++byteIdx)
+    {
+        uint8_t input = buffer[byteIdx];
+        for (unsigned short bitIdx = 0; bitIdx < 8; ++bitIdx)
+        {
+            //instead of xoring each bit of the result specific to the polynomial with the input
+            //we can xor the entire byte with the polynmomial bits if the input is a 1
+            //xor-ing with 0 causes no change and xor-ing with 1 causes bit toggle
+            //therefore only the bits with a 1 in the polynomial (corresponding to xor in the circuit in class)
+            //will be toggled, and only when the input bit is a 1 and would have toggled the bits
+            bool invert = (input >> 7 - bitIdx) & 0x01;
+
+            //barrel shift
+            result = result << 1 | ((result>>7) & 0x01);
+            
+            if (invert)
+            {
+                result ^= POLYNOMIAL;
+            }
+            uprintf("%x\n", result);
+
+        }
+    }
+    return result;
+}
 
 /**
  * IRQ Handler for hb_timer

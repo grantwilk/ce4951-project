@@ -88,40 +88,53 @@ int main( void )
     GPIOC->ODR |= GPIO_ODR_OD11;
     network_rx_queue_reset();
 
-    while(1)
-    {
-        //try a network read to check buffer.
-        if(network_rx((uint8_t *) networkRxBuffer, &receiveAddr))
-        {
-            //print message
-            uprintf("[ From 0x%02X: %s ]\n", receiveAddr, networkRxBuffer);
-            uartRxReprint();
-        }
-        //if uart has full string get it and place it in transmit buffer.
-        if(uartRxReady())
-        {
-            //get user message to transmit
-            fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
-            fflush(stdin);
+    uint8_t buf[8] = {0x55, 0x01, 0x08, 0x52, 0x01, 0x01, 0x41, 0x00};
 
-            // remove newline from message
-            uartRxBuffer[strlen(uartRxBuffer) - 1] = 0x00;
-            rxBufferSize = strlen(uartRxBuffer);
+    uint8_t result = crc8_calculate(buf, 8, 0x55);
+    uprintf("crc calculation: %x\n", result);
 
-            //check for preset transmissions
-            if(!strcmp(uartRxBuffer,"/zeros")) {
-                memset(uartRxBuffer, 0x00, 8);
-                rxBufferSize = 8;
-            }
-            else if (!strcmp(uartRxBuffer, "/ones")) {
-                memset(uartRxBuffer, 0xFF, 8);
-                rxBufferSize = 8;
-            }
+    buf[7] = result;
 
-            uprintf("[ To 0x%02X: %s ]\n", 0x00, uartRxBuffer);
-            ERROR_HANDLE_FATAL(network_tx(0x00, (uint8_t *) uartRxBuffer, rxBufferSize));
-        }
-    }
+    result = crc8_calculate(buf, 8, 0x55);
+    uprintf("inverse: %x\n", result);
+
+    while(1){}
+
+
+    // while(1)
+    // {
+    //     //try a network read to check buffer.
+    //     if(network_rx((uint8_t *) networkRxBuffer, &receiveAddr))
+    //     {
+    //         //print message
+    //         uprintf("[ From 0x%02X: %s ]\n", receiveAddr, networkRxBuffer);
+    //         uartRxReprint();
+    //     }
+    //     //if uart has full string get it and place it in transmit buffer.
+    //     if(uartRxReady())
+    //     {
+    //         //get user message to transmit
+    //         fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
+    //         fflush(stdin);
+
+    //         // remove newline from message
+    //         uartRxBuffer[strlen(uartRxBuffer) - 1] = 0x00;
+    //         rxBufferSize = strlen(uartRxBuffer);
+
+    //         //check for preset transmissions
+    //         if(!strcmp(uartRxBuffer,"/zeros")) {
+    //             memset(uartRxBuffer, 0x00, 8);
+    //             rxBufferSize = 8;
+    //         }
+    //         else if (!strcmp(uartRxBuffer, "/ones")) {
+    //             memset(uartRxBuffer, 0xFF, 8);
+    //             rxBufferSize = 8;
+    //         }
+
+    //         uprintf("[ To 0x%02X: %s ]\n", 0x00, uartRxBuffer);
+    //         ERROR_HANDLE_FATAL(network_tx(0x00, (uint8_t *) uartRxBuffer, rxBufferSize));
+    //     }
+    // }
 }
 
 
