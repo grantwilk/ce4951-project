@@ -174,11 +174,9 @@ ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
     // break buffer into chunks and queue
     while (size - queued_bytes)
     {
-        //TODO set trailer with big brain CRC algorithm
-        frame.trailer.crc8_fcs = 0x00;
         frame.header.length = MIN(MAX_MESSAGE_SIZE, size - queued_bytes);
-
         frame.message = (char *) buffer + queued_bytes;
+        frame_crc_apply(&frame);
 
         // encode in manchester
         unsigned int manchester_size = network_encode_frame_manchester(manchester, &frame);
@@ -231,14 +229,17 @@ bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr)
         ERROR_HANDLE_NON_FATAL(error);
         if (!error)
         {
-            if ((sizeof(frame_header_t) + (frame.header.length) + sizeof(frame_trailer_t) != element->size / 2)
-                || (frame.header.preamble != HEADER_PREAMBLE))
+            if ((frame.header.preamble != HEADER_PREAMBLE))
             {
-                ERROR_HANDLE_NON_FATAL(ERROR_CODE_MALFORMED_MESSAGE_RECEIVED);
+                ERROR_HANDLE_NON_FATAL(ERROR_CODE_INCORRECT_PREAMBLE_RECEIVED);
+            } 
+            else if ((sizeof(frame_header_t) + (frame.header.length) + sizeof(frame_trailer_t) != element->size / 2))
+            {
+                ERROR_HANDLE_NON_FATAL(ERROR_CODE_INCORRECT_MESSAGE_LENGTH);
             } 
             else if (frame.header.version != PROTOCOL_VERSION)
             {
-                ERROR_HANDLE_NON_FATAL(ERROR_CODE_WRONG_MESSAGE_VERSION_RECEIVED);
+                ERROR_HANDLE_NON_FATAL(ERROR_CODE_INVALID_MESSAGE_VERSION_RECEIVED);
             }
             else //if (frame.header.destination != LOCAL_MACHINE_ADDRESS) <= uncomment to only read messages matching my address
             { // header appears valid, continue decoding frame
@@ -247,14 +248,35 @@ bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr)
                 if (!error)
                 {
                     //todo validate CRC of message
-
-                    network_rx_queue_pop();
-                    frame.message[frame.header.length] = 0; // end with null termination
-                    if (sourceAddr != NULL)
+                    if (frame.header.crc_flag == 0x01)
                     {
-                        *sourceAddr = frame.header.source;
+                        if (!frame_crc_isValid(&frame))
+                        {
+                            error = ERROR_CODE_CRC_ON_CRC_CHECK_FAIL;
+                        }
+                    } 
+                    else if (frame.header.crc_flag == 0x00)
+                    {
+                        if (frame.trailer.crc8_fcs != 0xAA)
+                        {
+                            error = ERROR_CODE_CRC_ON_CRC_CHECK_FAIL;
+                        }
+                    } else
+                    {
+                        error = ERROR_CODE_INVALID_CRC_FLAG;
                     }
-                    return true;
+                    ERROR_HANDLE_NON_FATAL(error);
+                    if (!error)
+                    {
+                        network_rx_queue_pop();
+                        frame.message[frame.header.length] = 0; // end with null termination
+                        if (sourceAddr != NULL)
+                        {
+                            *sourceAddr = frame.header.source;
+                        }
+                        return true;
+                    }
+
                 } 
             }
         }
@@ -694,15 +716,43 @@ network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
 
     return size * 2;
 }
-#define POLYNOMIAL 0b100000111
+#define POLYNOMIAL 0b00000111
+
+
+#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
+#define BYTE_TO_BINARY(byte)  \
+  (byte & 0x80 ? '1' : '0'), \
+  (byte & 0x40 ? '1' : '0'), \
+  (byte & 0x20 ? '1' : '0'), \
+  (byte & 0x10 ? '1' : '0'), \
+  (byte & 0x08 ? '1' : '0'), \
+  (byte & 0x04 ? '1' : '0'), \
+  (byte & 0x02 ? '1' : '0'), \
+  (byte & 0x01 ? '1' : '0') 
+
+
+
+void frame_crc_apply(frame_t * frame)
+{
+    uint8_t headerResult = crc8_calculate((uint8_t *) &frame->header, sizeof(frame_header_t), 0);
+    frame->trailer.crc8_fcs = crc8_calculate(frame->message, frame->header.length, headerResult);
+}
+
+
+bool frame_crc_isValid(frame_t * frame)
+{
+    uint8_t headerResult = crc8_calculate((uint8_t *) &frame->header, sizeof(frame_header_t), 0);
+    uint8_t messageResult = crc8_calculate(frame->message, frame->header.length, headerResult);
+    return !crc8_calculate((uint8_t *) &frame->trailer, sizeof(frame_trailer_t), messageResult);
+}
 
 uint8_t crc8_calculate(uint8_t * buffer, unsigned int size, uint8_t initialValue)
 {
     uint8_t result = initialValue;
-
     for (unsigned int byteIdx = 0; byteIdx < size; ++byteIdx)
     {
         uint8_t input = buffer[byteIdx];
+        printf("input byte"BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(input));
         for (unsigned short bitIdx = 0; bitIdx < 8; ++bitIdx)
         {
             //instead of xoring each bit of the result specific to the polynomial with the input
@@ -710,19 +760,21 @@ uint8_t crc8_calculate(uint8_t * buffer, unsigned int size, uint8_t initialValue
             //xor-ing with 0 causes no change and xor-ing with 1 causes bit toggle
             //therefore only the bits with a 1 in the polynomial (corresponding to xor in the circuit in class)
             //will be toggled, and only when the input bit is a 1 and would have toggled the bits
-            bool invert = (input >> 7 - bitIdx) & 0x01;
+            bool invert = ((input >> (7 - bitIdx)) & 0x01) ^ (result >> 7);
 
             //barrel shift
-            result = result << 1 | ((result>>7) & 0x01);
+            result = result << 1;
+
+            // uprintf("result after shift "BYTE_TO_BINARY_PATTERN"\n", BYTE_TO_BINARY(result));
             
             if (invert)
             {
                 result ^= POLYNOMIAL;
+                // uprintf("result after xor   "BYTE_TO_BINARY_PATTERN"\n", BYTE_TO_BINARY(result));
             }
-            uprintf("%x\n", result);
-
         }
     }
+    uprintf("crc result: %x\n", result);
     return result;
 }
 

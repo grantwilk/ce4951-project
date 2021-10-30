@@ -88,17 +88,45 @@ int main( void )
     GPIOC->ODR |= GPIO_ODR_OD11;
     network_rx_queue_reset();
 
-    uint8_t buf[8] = {0x55, 0x01, 0x08, 0x52, 0x01, 0x01, 0x41, 0x00};
+    // uint8_t buf[2] = {0xD8, 0x00};
 
-    uint8_t result = crc8_calculate(buf, 8, 0x55);
-    uprintf("crc calculation: %x\n", result);
+    // uint8_t result = crc8_calculate(buf, 1, 0);
+    // uprintf("crc calculation: %x\n", result);
 
-    buf[7] = result;
+    // buf[1] = result;
 
-    result = crc8_calculate(buf, 8, 0x55);
-    uprintf("inverse: %x\n", result);
+    // result = crc8_calculate(buf, 2, 0);
+    // uprintf("inverse: %x\n", result);
+    char msg[1] = {'A'};
+
+    frame_t frame = {
+        .header = {
+            .preamble = 0x55,
+            .version = 0x01,
+            .source = 0x08,
+            .destination = 0x52,
+            .length = 0x01,
+            .crc_flag = 0x01
+        },
+        .message = msg,
+        .trailer.crc8_fcs = 0x00
+    };
+    frame_crc_apply(&frame);
+    uprintf("CRC Calculated: %x\n", frame.trailer.crc8_fcs);
+
+    if (frame_crc_isValid(&frame))
+    {
+        uprintf("Was valid\n");
+    } else{
+        uprintf("wasn't valid\n");
+    }
+
+
+
 
     while(1){}
+
+
 
 
     // while(1)

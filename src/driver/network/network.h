@@ -58,6 +58,8 @@ static ERROR_CODE network_decode_manchester_frame_message_trailer( frame_t * fra
 static ERROR_CODE network_decode_manchester_header( frame_header_t * header, uint8_t * manchester);
 
 uint8_t crc8_calculate(uint8_t * buffer, unsigned int size, uint8_t initialValue);
+bool frame_crc_isValid(frame_t * frame);
+void frame_crc_apply(frame_t * frame);
 
 
 
