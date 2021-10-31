@@ -88,81 +88,40 @@ int main( void )
     GPIOC->ODR |= GPIO_ODR_OD11;
     network_rx_queue_reset();
 
-    // uint8_t buf[2] = {0xD8, 0x00};
-
-    // uint8_t result = crc8_calculate(buf, 1, 0);
-    // uprintf("crc calculation: %x\n", result);
-
-    // buf[1] = result;
-
-    // result = crc8_calculate(buf, 2, 0);
-    // uprintf("inverse: %x\n", result);
-    char msg[1] = {'A'};
-
-    frame_t frame = {
-        .header = {
-            .preamble = 0x55,
-            .version = 0x01,
-            .source = 0x08,
-            .destination = 0x52,
-            .length = 0x01,
-            .crc_flag = 0x01
-        },
-        .message = msg,
-        .trailer.crc8_fcs = 0x00
-    };
-    frame_crc_apply(&frame);
-    uprintf("CRC Calculated: %x\n", frame.trailer.crc8_fcs);
-
-    if (frame_crc_isValid(&frame))
+    while(1)
     {
-        uprintf("Was valid\n");
-    } else{
-        uprintf("wasn't valid\n");
+        //try a network read to check buffer.
+        if(network_rx((uint8_t *) networkRxBuffer, &receiveAddr))
+        {
+            //print message
+            uprintf("[ From 0x%02X: %s ]\n", receiveAddr, networkRxBuffer);
+            uartRxReprint();
+        }
+        //if uart has full string get it and place it in transmit buffer.
+        if(uartRxReady())
+        {
+            //get user message to transmit
+            fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
+            fflush(stdin);
+
+            // remove newline from message
+            uartRxBuffer[strlen(uartRxBuffer) - 1] = 0x00;
+            rxBufferSize = strlen(uartRxBuffer);
+
+            //check for preset transmissions
+            if(!strcmp(uartRxBuffer,"/zeros")) {
+                memset(uartRxBuffer, 0x00, 8);
+                rxBufferSize = 8;
+            }
+            else if (!strcmp(uartRxBuffer, "/ones")) {
+                memset(uartRxBuffer, 0xFF, 8);
+                rxBufferSize = 8;
+            }
+
+            uprintf("[ To 0x%02X: %s ]\n", 0x00, uartRxBuffer);
+            ERROR_HANDLE_FATAL(network_tx(0x00, (uint8_t *) uartRxBuffer, rxBufferSize));
+        }
     }
-
-
-
-
-    while(1){}
-
-
-
-
-    // while(1)
-    // {
-    //     //try a network read to check buffer.
-    //     if(network_rx((uint8_t *) networkRxBuffer, &receiveAddr))
-    //     {
-    //         //print message
-    //         uprintf("[ From 0x%02X: %s ]\n", receiveAddr, networkRxBuffer);
-    //         uartRxReprint();
-    //     }
-    //     //if uart has full string get it and place it in transmit buffer.
-    //     if(uartRxReady())
-    //     {
-    //         //get user message to transmit
-    //         fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
-    //         fflush(stdin);
-
-    //         // remove newline from message
-    //         uartRxBuffer[strlen(uartRxBuffer) - 1] = 0x00;
-    //         rxBufferSize = strlen(uartRxBuffer);
-
-    //         //check for preset transmissions
-    //         if(!strcmp(uartRxBuffer,"/zeros")) {
-    //             memset(uartRxBuffer, 0x00, 8);
-    //             rxBufferSize = 8;
-    //         }
-    //         else if (!strcmp(uartRxBuffer, "/ones")) {
-    //             memset(uartRxBuffer, 0xFF, 8);
-    //             rxBufferSize = 8;
-    //         }
-
-    //         uprintf("[ To 0x%02X: %s ]\n", 0x00, uartRxBuffer);
-    //         ERROR_HANDLE_FATAL(network_tx(0x00, (uint8_t *) uartRxBuffer, rxBufferSize));
-    //     }
-    // }
 }
 
 

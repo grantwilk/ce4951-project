@@ -24,6 +24,11 @@
 #define TX_QUEUE_SIZE                   (10)
 #define RX_QUEUE_SIZE                   (10)
 
+#define CRC_POLYNOMIAL 0b00000111
+#define CRC_FLAG_ON 0x01
+#define CRC_FLAG_OFF 0x00
+#define CRC_OFF_TRAILER_VALUE 0xAA
+
 // #define NETWORK_TX_DBG
 // #define MANCHESTER_DBG
 
@@ -160,7 +165,7 @@ ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
             .source = LOCAL_MACHINE_ADDRESS,
             .destination = dest,
             .length = 0x0,
-            .crc_flag = 0x01
+            .crc_flag = CRC_FLAG_ON
         },
         .message = (char *) buffer,
         .trailer = {
@@ -247,17 +252,16 @@ bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr)
                 ERROR_HANDLE_NON_FATAL(error);
                 if (!error)
                 {
-                    //todo validate CRC of message
-                    if (frame.header.crc_flag == 0x01)
+                    if (frame.header.crc_flag == CRC_FLAG_ON)
                     {
                         if (!frame_crc_isValid(&frame))
                         {
                             error = ERROR_CODE_CRC_ON_CRC_CHECK_FAIL;
                         }
                     } 
-                    else if (frame.header.crc_flag == 0x00)
+                    else if (frame.header.crc_flag == CRC_FLAG_OFF)
                     {
-                        if (frame.trailer.crc8_fcs != 0xAA)
+                        if (frame.trailer.crc8_fcs != CRC_OFF_TRAILER_VALUE)
                         {
                             error = ERROR_CODE_CRC_ON_CRC_CHECK_FAIL;
                         }
@@ -716,65 +720,65 @@ network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
 
     return size * 2;
 }
-#define POLYNOMIAL 0b00000111
 
-
-#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
-#define BYTE_TO_BINARY(byte)  \
-  (byte & 0x80 ? '1' : '0'), \
-  (byte & 0x40 ? '1' : '0'), \
-  (byte & 0x20 ? '1' : '0'), \
-  (byte & 0x10 ? '1' : '0'), \
-  (byte & 0x08 ? '1' : '0'), \
-  (byte & 0x04 ? '1' : '0'), \
-  (byte & 0x02 ? '1' : '0'), \
-  (byte & 0x01 ? '1' : '0') 
-
-
-
-void frame_crc_apply(frame_t * frame)
+/**
+ * Calculates crc_fs value for the frame and sets the trailer accordingly
+ * 
+ * @param   [in]   frame  The frame to apply CRC calculation to
+ */
+static void frame_crc_apply(frame_t * frame)
 {
     uint8_t headerResult = crc8_calculate((uint8_t *) &frame->header, sizeof(frame_header_t), 0);
     frame->trailer.crc8_fcs = crc8_calculate(frame->message, frame->header.length, headerResult);
 }
 
-
-bool frame_crc_isValid(frame_t * frame)
+/**
+ * Validates that the crc_fs value for the frame is correct for the received data in the frame
+ * 
+ * @param   [in]   frame  The frame to validate CRC on
+ * @return bool if crc value is valid
+ */
+static bool frame_crc_isValid(frame_t * frame)
 {
     uint8_t headerResult = crc8_calculate((uint8_t *) &frame->header, sizeof(frame_header_t), 0);
     uint8_t messageResult = crc8_calculate(frame->message, frame->header.length, headerResult);
     return !crc8_calculate((uint8_t *) &frame->trailer, sizeof(frame_trailer_t), messageResult);
 }
 
-uint8_t crc8_calculate(uint8_t * buffer, unsigned int size, uint8_t initialValue)
+
+/**
+ * Calculates an 8-bit CRC value for a given buffer of bytes
+ * 
+ * @param   [in]    buffer      The input buffer to calcualte CRC from
+ * @param   [in]    size        The size of the input buffer
+ * @param   [in]    initialValue initial value for the remainder byte. 
+ *           Can be used to save state between multiple calls, or use a non-zero initial value, as some protocols do
+ * @return  the result of the CRC calculation on the buffer
+ */
+static uint8_t crc8_calculate(uint8_t * buffer, unsigned int size, uint8_t initialValue)
 {
     uint8_t result = initialValue;
     for (unsigned int byteIdx = 0; byteIdx < size; ++byteIdx)
     {
         uint8_t input = buffer[byteIdx];
-        printf("input byte"BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(input));
         for (unsigned short bitIdx = 0; bitIdx < 8; ++bitIdx)
         {
             //instead of xoring each bit of the result specific to the polynomial with the input
-            //we can xor the entire byte with the polynmomial bits if the input is a 1
+            //we can xor the entire byte with the polynmomial bits if the input XOR MSB of result is a 1
             //xor-ing with 0 causes no change and xor-ing with 1 causes bit toggle
             //therefore only the bits with a 1 in the polynomial (corresponding to xor in the circuit in class)
             //will be toggled, and only when the input bit is a 1 and would have toggled the bits
             bool invert = ((input >> (7 - bitIdx)) & 0x01) ^ (result >> 7);
 
-            //barrel shift
+            //shift, LSB of result will be 0, and will take the value of invert since LSB of CRC_POLYNOMIAL is always a 1
             result = result << 1;
-
-            // uprintf("result after shift "BYTE_TO_BINARY_PATTERN"\n", BYTE_TO_BINARY(result));
             
             if (invert)
             {
-                result ^= POLYNOMIAL;
-                // uprintf("result after xor   "BYTE_TO_BINARY_PATTERN"\n", BYTE_TO_BINARY(result));
+                result ^= CRC_POLYNOMIAL;
             }
         }
     }
-    uprintf("crc result: %x\n", result);
     return result;
 }
 
