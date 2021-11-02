@@ -25,6 +25,10 @@
 #define TX_QUEUE_SIZE                   (10)
 #define RX_QUEUE_SIZE                   (10)
 
+#define RANDOM_BACKOFF_MASK             (0xFF)
+#define RANDOM_BACKOFF_DENOM_MAX        (255)
+#define RANDOM_BACKOFF_MAX_PERIOD_MS    (1000)
+
 // #define NETWORK_TX_DBG
 // #define MANCHESTER_DBG
 
@@ -784,11 +788,16 @@ void TIM4_IRQHandler()
             // Output a 1 to PC11
             GPIOC->ODR |= GPIO_ODR_OD11;
 
-            // reset and start the backoff timer
-            // TODO: randomize backoff timer
-            backoff_set_period(1000);
-            backoff_reset();
-            backoff_start();
+            // set and start the backoff timer
+            uint8_t random = SysTick->VAL & RANDOM_BACKOFF_MASK;
+            ERROR_HANDLE_NON_FATAL(
+                backoff_set_period(
+                    (random * RANDOM_BACKOFF_MAX_PERIOD_MS) /
+                    RANDOM_BACKOFF_DENOM_MAX
+                )
+            );
+            ERROR_HANDLE_NON_FATAL(backoff_reset());
+            ERROR_HANDLE_NON_FATAL(backoff_start());
         }
     }
 }
