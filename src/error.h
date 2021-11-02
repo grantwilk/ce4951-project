@@ -53,9 +53,13 @@ typedef enum
     ERROR_CODE_DRIVER_TIMER_HB_NOT_INITIALIZED,                 // 0x14
     ERROR_CODE_DRIVER_TIMER_HB_ALREADY_INITIALIZED,             // 0x15
 
-    ERROR_CODE_INVALID_MANCHESTER_RECEIVED,                      // 0x16
-    ERROR_CODE_MALFORMED_MESSAGE_RECEIVED,                       //0x17
-    ERROR_CODE_WRONG_MESSAGE_VERSION_RECEIVED
+    ERROR_CODE_INVALID_MANCHESTER_RECEIVED,                     // 0x16
+    ERROR_CODE_INCORRECT_PREAMBLE_RECEIVED,                     // 0x17
+    ERROR_CODE_INCORRECT_MESSAGE_LENGTH,                        // 0x18
+    ERROR_CODE_INVALID_MESSAGE_VERSION_RECEIVED,                // 0x19
+    ERROR_CODE_CRC_OFF_TRAILER_INVALID,                         // 0x1a
+    ERROR_CODE_CRC_ON_CRC_CHECK_FAIL,                           // 0x1b
+    ERROR_CODE_INVALID_CRC_FLAG                                 // 0x1c
 
 } ERROR_CODE;
 
