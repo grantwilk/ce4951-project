@@ -32,7 +32,7 @@ static bool hb_timer_is_init = false;
 /**
  * Timeout timer running flag
  */
-static bool hb_timer_is_running = false;
+static bool timer_is_running = false;
 
 
 ERROR_CODE hb_timer_init(uint16_t us)
@@ -63,7 +63,7 @@ ERROR_CODE hb_timer_init(uint16_t us)
     RETURN_NO_ERROR();
 }
 
-ERROR_CODE hb_timer_reset_and_start()
+ERROR_CODE hb_timer_reset()
 {
     // throw an error if the hb timer is not initialized
     if ( !hb_timer_is_init )
@@ -73,10 +73,21 @@ ERROR_CODE hb_timer_reset_and_start()
 
     TIM4->CNT = 0;
 
-    if (!hb_timer_is_running)
+    RETURN_NO_ERROR();
+}
+
+ERROR_CODE hb_timer_start()
+{
+    // throw an error if the hb timer is not initialized
+    if ( !hb_timer_is_init )
+    {
+        THROW_ERROR( ERROR_CODE_DRIVER_TIMER_HB_NOT_INITIALIZED );
+    }
+
+    if (!timer_is_running)
     {
         TIM4->CR1 |= TIM_CR1_CEN;
-        hb_timer_is_running = true;
+        timer_is_running = true;
     }
 
     RETURN_NO_ERROR();
@@ -91,7 +102,7 @@ ERROR_CODE hb_timer_stop()
     }
 
     TIM4->CR1 &= ~( TIM_CR1_CEN );
-    hb_timer_is_running = false;
+    timer_is_running = false;
 
     RETURN_NO_ERROR();
 }
@@ -107,4 +118,9 @@ ERROR_CODE hb_timer_set_timeout(uint16_t us)
     TIM4->ARR = us;
 
     RETURN_NO_ERROR();
+}
+
+bool hb_timer_is_running()
+{
+    return timer_is_running;
 }

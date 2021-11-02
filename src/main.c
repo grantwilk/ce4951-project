@@ -24,12 +24,20 @@
 # include "state.h"
 
 
-
 /* ------------------------------------------ Defines ------------------------------------------- */
 
 
 # define CE4981_NETWORK_TIMEOUT_PERIOD_US   ( 1100U )
 # define CE4981_NETWORK_MAX_MESSAGE_SIZE    ( 256 )
+
+
+/* -------------------------------------- Global Variables -------------------------------------- */
+
+
+/**
+ * Flag indicating whether a backoff transmission is ready to transmit again
+ */
+extern bool backoff_ready;
 
 
 /* ----------------------------------------- Functions ------------------------------------------ */
@@ -98,7 +106,7 @@ int main( void )
             uartRxReprint();
         }
         //if uart has full string get it and place it in transmit buffer.
-        if(uartRxReady())
+        else if (uartRxReady())
         {
             //get user message to transmit
             fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
@@ -120,6 +128,10 @@ int main( void )
 
             uprintf("[ To 0x%02X: %s ]\n", 0x00, uartRxBuffer);
             ERROR_HANDLE_FATAL(network_tx(0x00, (uint8_t *) uartRxBuffer, rxBufferSize));
+        }
+        else if (backoff_ready)
+        {
+            ERROR_HANDLE_FATAL(network_start_tx());
         }
     }
 }

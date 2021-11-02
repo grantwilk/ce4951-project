@@ -3,9 +3,10 @@
 #include <memory.h>
 #include "stm32f446xx.h"
 
+#include "hb_timer.h"
+#include "backoff.h"
 #include "network.h"
 #include "state.h"
-#include "hb_timer.h"
 
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -280,8 +281,11 @@ ERROR_CODE network_start_tx()
 
     if ( !network_tx_queue_is_empty() && ( state_get() == IDLE ))
     {
-
-        ELEVATE_IF_ERROR(hb_timer_reset_and_start());
+        if (!hb_timer_is_running())
+        {
+            ELEVATE_IF_ERROR(hb_timer_reset());
+        }
+        ELEVATE_IF_ERROR(hb_timer_start());
     }
 
     RETURN_NO_ERROR();
@@ -718,7 +722,8 @@ void TIM4_IRQHandler()
 
         if(state != COLLISION)
         {
-            hb_timer_reset_and_start();
+            hb_timer_reset();
+            hb_timer_start();
 
             if( byteIdx == tx_queue[msg_idx].size)
             {
@@ -771,11 +776,19 @@ void TIM4_IRQHandler()
         {
             // Stop the timer we are in COLLISION State
             hb_timer_stop();
+
             // Reset Transmission of the data
             byteIdx = 0;
             bitIdx = 0;
+
             // Output a 1 to PC11
             GPIOC->ODR |= GPIO_ODR_OD11;
+
+            // reset and start the backoff timer
+            // TODO: randomize backoff timer
+            backoff_set_timeout(1000);
+            backoff_reset();
+            backoff_start();
         }
     }
 }
