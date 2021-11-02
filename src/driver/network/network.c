@@ -786,7 +786,7 @@ void TIM4_IRQHandler()
 
             // reset and start the backoff timer
             // TODO: randomize backoff timer
-            backoff_set_timeout(1000);
+            backoff_set_period(1000);
             backoff_reset();
             backoff_start();
         }

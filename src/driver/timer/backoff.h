@@ -30,7 +30,7 @@ ERROR_CODE backoff_start();
 ERROR_CODE backoff_stop();
 ERROR_CODE backoff_reset();
 
-ERROR_CODE backoff_set_timeout( uint16_t ms );
+ERROR_CODE backoff_set_period( uint16_t ms );
 
 bool backoff_is_running();
 
