@@ -25,6 +25,11 @@
 #define TX_QUEUE_SIZE                   (10)
 #define RX_QUEUE_SIZE                   (10)
 
+#define CRC_POLYNOMIAL 0b00000111
+#define CRC_FLAG_ON 0x01
+#define CRC_FLAG_OFF 0x00
+#define CRC_OFF_TRAILER_VALUE 0xAA
+
 #define RANDOM_BACKOFF_MASK             (0xFF)
 #define RANDOM_BACKOFF_DENOM_MAX        (255)
 #define RANDOM_BACKOFF_MAX_PERIOD_MS    (1000)
@@ -165,7 +170,7 @@ ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
             .source = LOCAL_MACHINE_ADDRESS,
             .destination = dest,
             .length = 0x0,
-            .crc_flag = 0x01
+            .crc_flag = CRC_FLAG_ON
         },
         .message = (char *) buffer,
         .trailer = {
@@ -179,11 +184,9 @@ ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
     // break buffer into chunks and queue
     while (size - queued_bytes)
     {
-        //TODO set trailer with big brain CRC algorithm
-        frame.trailer.crc8_fcs = 0x00;
         frame.header.length = MIN(MAX_MESSAGE_SIZE, size - queued_bytes);
-
         frame.message = (char *) buffer + queued_bytes;
+        frame_crc_apply(&frame);
 
         // encode in manchester
         unsigned int manchester_size = network_encode_frame_manchester(manchester, &frame);
@@ -236,14 +239,17 @@ bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr)
         ERROR_HANDLE_NON_FATAL(error);
         if (!error)
         {
-            if ((sizeof(frame_header_t) + (frame.header.length) + sizeof(frame_trailer_t) != element->size / 2)
-                || (frame.header.preamble != HEADER_PREAMBLE))
+            if ((frame.header.preamble != HEADER_PREAMBLE))
             {
-                ERROR_HANDLE_NON_FATAL(ERROR_CODE_MALFORMED_MESSAGE_RECEIVED);
+                ERROR_HANDLE_NON_FATAL(ERROR_CODE_INCORRECT_PREAMBLE_RECEIVED);
+            }
+            else if ((sizeof(frame_header_t) + (frame.header.length) + sizeof(frame_trailer_t) != element->size / 2))
+            {
+                ERROR_HANDLE_NON_FATAL(ERROR_CODE_INCORRECT_MESSAGE_LENGTH);
             } 
             else if (frame.header.version != PROTOCOL_VERSION)
             {
-                ERROR_HANDLE_NON_FATAL(ERROR_CODE_WRONG_MESSAGE_VERSION_RECEIVED);
+                ERROR_HANDLE_NON_FATAL(ERROR_CODE_INVALID_MESSAGE_VERSION_RECEIVED);
             }
             else //if (frame.header.destination != LOCAL_MACHINE_ADDRESS) <= uncomment to only read messages matching my address
             { // header appears valid, continue decoding frame
@@ -251,15 +257,35 @@ bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr)
                 ERROR_HANDLE_NON_FATAL(error);
                 if (!error)
                 {
-                    //todo validate CRC of message
-
-                    network_rx_queue_pop();
-                    frame.message[frame.header.length] = 0; // end with null termination
-                    if (sourceAddr != NULL)
+                    if (frame.header.crc_flag == CRC_FLAG_ON)
                     {
-                        *sourceAddr = frame.header.source;
+                        if (!frame_crc_isValid(&frame))
+                        {
+                            error = ERROR_CODE_CRC_ON_CRC_CHECK_FAIL;
+                        }
                     }
-                    return true;
+                    else if (frame.header.crc_flag == CRC_FLAG_OFF)
+                    {
+                        if (frame.trailer.crc8_fcs != CRC_OFF_TRAILER_VALUE)
+                        {
+                            error = ERROR_CODE_CRC_ON_CRC_CHECK_FAIL;
+                        }
+                    } else
+                    {
+                        error = ERROR_CODE_INVALID_CRC_FLAG;
+                    }
+                    ERROR_HANDLE_NON_FATAL(error);
+                    if (!error)
+                    {
+                        network_rx_queue_pop();
+                        frame.message[frame.header.length] = 0; // end with null termination
+                        if (sourceAddr != NULL)
+                        {
+                            *sourceAddr = frame.header.source;
+                        }
+                        return true;
+                    }
+
                 } 
             }
         }
@@ -703,6 +729,66 @@ network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
     return size * 2;
 }
 
+/**
+ * Calculates crc_fs value for the frame and sets the trailer accordingly
+ *
+ * @param   [in]   frame  The frame to apply CRC calculation to
+ */
+static void frame_crc_apply(frame_t * frame)
+{
+    uint8_t headerResult = crc8_calculate((uint8_t *) &frame->header, sizeof(frame_header_t), 0);
+    frame->trailer.crc8_fcs = crc8_calculate(frame->message, frame->header.length, headerResult);
+}
+
+/**
+ * Validates that the crc_fs value for the frame is correct for the received data in the frame
+ *
+ * @param   [in]   frame  The frame to validate CRC on
+ * @return bool if crc value is valid
+ */
+static bool frame_crc_isValid(frame_t * frame)
+{
+    uint8_t headerResult = crc8_calculate((uint8_t *) &frame->header, sizeof(frame_header_t), 0);
+    uint8_t messageResult = crc8_calculate(frame->message, frame->header.length, headerResult);
+    return !crc8_calculate((uint8_t *) &frame->trailer, sizeof(frame_trailer_t), messageResult);
+}
+
+
+/**
+ * Calculates an 8-bit CRC value for a given buffer of bytes
+ *
+ * @param   [in]    buffer      The input buffer to calcualte CRC from
+ * @param   [in]    size        The size of the input buffer
+ * @param   [in]    initialValue initial value for the remainder byte.
+ *           Can be used to save state between multiple calls, or use a non-zero initial value, as some protocols do
+ * @return  the result of the CRC calculation on the buffer
+ */
+static uint8_t crc8_calculate(uint8_t * buffer, unsigned int size, uint8_t initialValue)
+{
+    uint8_t result = initialValue;
+    for (unsigned int byteIdx = 0; byteIdx < size; ++byteIdx)
+    {
+        uint8_t input = buffer[byteIdx];
+        for (unsigned short bitIdx = 0; bitIdx < 8; ++bitIdx)
+        {
+            //instead of xoring each bit of the result specific to the polynomial with the input
+            //we can xor the entire byte with the polynmomial bits if the input XOR MSB of result is a 1
+            //xor-ing with 0 causes no change and xor-ing with 1 causes bit toggle
+            //therefore only the bits with a 1 in the polynomial (corresponding to xor in the circuit in class)
+            //will be toggled, and only when the input bit is a 1 and would have toggled the bits
+            bool invert = ((input >> (7 - bitIdx)) & 0x01) ^ (result >> 7);
+
+            //shift, LSB of result will be 0, and will take the value of invert since LSB of CRC_POLYNOMIAL is always a 1
+            result = result << 1;
+
+            if (invert)
+            {
+                result ^= CRC_POLYNOMIAL;
+            }
+        }
+    }
+    return result;
+}
 
 /**
  * IRQ Handler for hb_timer
