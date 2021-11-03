@@ -100,7 +100,12 @@ int main( void )
         //try a network read to check buffer.
         if(network_rx((uint8_t *) networkRxBuffer, &receiveAddr, &destinationAddr))
         {
-            if(localMachineAddress == destinationAddr)
+            if(destinationAddr == 0x00)
+            {
+                uprintf("[ Broadcast from 0x%02X: %s ]\n", receiveAddr, networkRxBuffer);
+                uartRxReprint();
+            }
+            else if(destinationAddr == localMachineAddress)
             {
                 //print message
                 uprintf("[ From 0x%02X: %s ]\n", receiveAddr, networkRxBuffer);
@@ -122,7 +127,7 @@ int main( void )
 
             // Get Address from input
             char address[2] = {uartRxBuffer[2], uartRxBuffer[3]};
-            unsigned int addressHEX = (int)strtol(address, NULL, 16);
+            unsigned int destinationAddress = (int)strtol(address, NULL, 16);
 
             // Get Message from input
             char message[CE4981_NETWORK_MAX_MESSAGE_SIZE];
@@ -140,8 +145,14 @@ int main( void )
                 messageSize = 8;
             }
 
-            uprintf("[ To 0x%02X: %s ]\n", addressHEX, message);
-            ERROR_HANDLE_FATAL(network_tx(addressHEX, (uint8_t *) message, messageSize, localMachineAddress));
+            if(destinationAddress == 0x00)
+            {
+                uprintf("[ Broadcast: %s ]\n", message);
+            } else {
+                uprintf("[ To 0x%02X: %s ]\n", destinationAddress, message);
+            }
+
+            ERROR_HANDLE_FATAL(network_tx(destinationAddress, (uint8_t *) message, messageSize, localMachineAddress));
         }
     }
 }
