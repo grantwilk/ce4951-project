@@ -94,9 +94,11 @@ int main( void )
         //try a network read to check buffer.
         if(network_rx((uint8_t *) networkRxBuffer, &receiveAddr))
         {
+
             //print message
             uprintf("[ From 0x%02X: %s ]\n", receiveAddr, networkRxBuffer);
             uartRxReprint();
+
         }
         //if uart has full string get it and place it in transmit buffer.
         if(uartRxReady())
@@ -119,22 +121,15 @@ int main( void )
                 rxBufferSize = 8;
             }
 
+            // Get Address from input
             char address[2] = {uartRxBuffer[2], uartRxBuffer[3]};
-            //char message[] = {*(uartRxBuffer+5)}
+            unsigned int addressHEX = (int)strtol(address, NULL, 16);
+
+            // Get Message from input
             char message[CE4981_NETWORK_MAX_MESSAGE_SIZE];
-            unsigned int messageSize = rxBufferSize - 5;
-
             memcpy(message, uartRxBuffer+5, CE4981_NETWORK_MAX_MESSAGE_SIZE);
-            //uprintf("Address = %s\n", address);
-            //uprintf("Message = %s\n", message);
-
-
-            //uprintf(uartRxBuffer);
-            //printf("Enter the Destination Address: 0x");
-            // Enter in two bytes (0-F)
-            // 2 (0-F) hexadecimal characters
-           // sscanf("");
-            int addressHEX = (int)strtol(address, NULL, 16);
+            // Size of the message
+            unsigned int messageSize = rxBufferSize - 5;
 
             uprintf("[ To 0x%02X: %s ]\n", addressHEX, message);
             ERROR_HANDLE_FATAL(network_tx(addressHEX, (uint8_t *) message, messageSize));
