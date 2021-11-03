@@ -12,6 +12,7 @@
 
 # include <stdio.h>
 # include <string.h>
+#include <stdlib.h>
 # include "main.h"
 # include "sysclock.h"
 # include "uio.h"
@@ -118,8 +119,25 @@ int main( void )
                 rxBufferSize = 8;
             }
 
-            uprintf("[ To 0x%02X: %s ]\n", 0x00, uartRxBuffer);
-            ERROR_HANDLE_FATAL(network_tx(0x00, (uint8_t *) uartRxBuffer, rxBufferSize));
+            char address[2] = {uartRxBuffer[2], uartRxBuffer[3]};
+            //char message[] = {*(uartRxBuffer+5)}
+            char message[CE4981_NETWORK_MAX_MESSAGE_SIZE];
+            unsigned int messageSize = rxBufferSize - 5;
+
+            memcpy(message, uartRxBuffer+5, CE4981_NETWORK_MAX_MESSAGE_SIZE);
+            //uprintf("Address = %s\n", address);
+            //uprintf("Message = %s\n", message);
+
+
+            //uprintf(uartRxBuffer);
+            //printf("Enter the Destination Address: 0x");
+            // Enter in two bytes (0-F)
+            // 2 (0-F) hexadecimal characters
+           // sscanf("");
+            int addressHEX = (int)strtol(address, NULL, 16);
+
+            uprintf("[ To 0x%02X: %s ]\n", addressHEX, message);
+            ERROR_HANDLE_FATAL(network_tx(addressHEX, (uint8_t *) message, messageSize));
         }
     }
 }
