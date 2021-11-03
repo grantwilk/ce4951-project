@@ -30,7 +30,9 @@
 
 
 # define CE4981_NETWORK_TIMEOUT_PERIOD_US   ( 1100U )
-# define CE4981_NETWORK_MAX_MESSAGE_SIZE    ( 256 )
+# define CE4981_NETWORK_MAX_MESSAGE_SIZE    ( 256 + 5) // I added 5 bytes due to Address Size in the UART
+
+
 
 
 /* ----------------------------------------- Functions ------------------------------------------ */
