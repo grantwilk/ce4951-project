@@ -125,34 +125,46 @@ int main( void )
             uartRxBuffer[strlen(uartRxBuffer) - 1] = 0x00;
             rxBufferSize = strlen(uartRxBuffer);
 
-            // Get Address from input
-            char address[2] = {uartRxBuffer[2], uartRxBuffer[3]};
-            unsigned int destinationAddress = (int)strtol(address, NULL, 16);
-
-            // Get Message from input
-            char message[CE4981_NETWORK_MAX_MESSAGE_SIZE];
-            memcpy(message, uartRxBuffer+5, CE4981_NETWORK_MAX_MESSAGE_SIZE);
-            // Size of the message
-            unsigned int messageSize = rxBufferSize - 5;
-
-            //check for preset transmissions
-            if(!strcmp(message,"/zeros")) {
-                memset(message, 0x00, 8);
-                messageSize = 8;
-            }
-            else if (!strcmp(message, "/ones")) {
-                memset(message, 0xFF, 8);
-                messageSize = 8;
-            }
-
-            if(destinationAddress == 0x00)
+            //check if setting address
+            if(!strncmp(uartRxBuffer, "/setaddr", 8))
             {
-                uprintf("[ Broadcast: %s ]\n", message);
-            } else {
-                uprintf("[ To 0x%02X: %s ]\n", destinationAddress, message);
+                char newAddress[2] = {uartRxBuffer[11], uartRxBuffer[12]};
+                localMachineAddress = (uint8_t)strtol(newAddress, NULL, 16);
+                uprintf("Local Address set to 0x%02X\n", localMachineAddress);
+            }
+            else
+            {
+                // Get Address from input
+                char address[2] = {uartRxBuffer[2], uartRxBuffer[3]};
+                uint8_t destinationAddress = (uint8_t)strtol(address, NULL, 16);
+
+                // Get Message from input
+                char message[CE4981_NETWORK_MAX_MESSAGE_SIZE];
+                memcpy(message, uartRxBuffer+5, CE4981_NETWORK_MAX_MESSAGE_SIZE);
+                // Size of the message
+                unsigned int messageSize = rxBufferSize - 5;
+
+                //check for preset transmissions
+                if(!strcmp(message,"/zeros")) {
+                    memset(message, 0x00, 8);
+                    messageSize = 8;
+                }
+                else if (!strcmp(message, "/ones")) {
+                    memset(message, 0xFF, 8);
+                    messageSize = 8;
+                }
+
+                if(destinationAddress == 0x00)
+                {
+                    uprintf("[ Broadcast: %s ]\n", message);
+                } else {
+                    uprintf("[ To 0x%02X: %s ]\n", destinationAddress, message);
+                }
+
+                ERROR_HANDLE_FATAL(network_tx(destinationAddress, (uint8_t *) message, messageSize, localMachineAddress));
             }
 
-            ERROR_HANDLE_FATAL(network_tx(destinationAddress, (uint8_t *) message, messageSize, localMachineAddress));
+
         }
     }
 }
