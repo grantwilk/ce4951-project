@@ -118,16 +118,6 @@ int main( void )
             uartRxBuffer[strlen(uartRxBuffer) - 1] = 0x00;
             rxBufferSize = strlen(uartRxBuffer);
 
-            //check for preset transmissions
-            if(!strcmp(uartRxBuffer,"/zeros")) {
-                memset(uartRxBuffer, 0x00, 8);
-                rxBufferSize = 8;
-            }
-            else if (!strcmp(uartRxBuffer, "/ones")) {
-                memset(uartRxBuffer, 0xFF, 8);
-                rxBufferSize = 8;
-            }
-
             // Get Address from input
             char address[2] = {uartRxBuffer[2], uartRxBuffer[3]};
             unsigned int addressHEX = (int)strtol(address, NULL, 16);
@@ -137,6 +127,16 @@ int main( void )
             memcpy(message, uartRxBuffer+5, CE4981_NETWORK_MAX_MESSAGE_SIZE);
             // Size of the message
             unsigned int messageSize = rxBufferSize - 5;
+
+            //check for preset transmissions
+            if(!strcmp(message,"/zeros")) {
+                memset(message, 0x00, 8);
+                messageSize = 8;
+            }
+            else if (!strcmp(message, "/ones")) {
+                memset(message, 0xFF, 8);
+                messageSize = 8;
+            }
 
             uprintf("[ To 0x%02X: %s ]\n", addressHEX, message);
             ERROR_HANDLE_FATAL(network_tx(addressHEX, (uint8_t *) message, messageSize, localMachineAddress));
