@@ -24,7 +24,7 @@
 /* ------------------------------- Functions -------------------------------- */
 
 
-ERROR_CODE backoff_init( uint16_t ms );
+ERROR_CODE backoff_init();
 
 ERROR_CODE backoff_start();
 ERROR_CODE backoff_stop();

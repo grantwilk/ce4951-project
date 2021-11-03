@@ -37,6 +37,7 @@
 // #define NETWORK_TX_DBG
 // #define MANCHESTER_DBG
 
+
 /**
  * Initialization flag
  */
@@ -120,6 +121,9 @@ ERROR_CODE network_init()
     // push the first bit (preamble bit) onto the rx queue since this is
     // normally handled by _push() but that neither have been called yet
     network_rx_queue_push_bit(1);
+
+    // initialize random backoff timer
+    backoff_init();
 
     network_is_init = true;
 
@@ -309,7 +313,8 @@ ERROR_CODE network_start_tx()
         THROW_ERROR(ERROR_CODE_NETWORK_NOT_INITIALIZED);
     }
 
-    if ( !network_tx_queue_is_empty() && ( state_get() == IDLE ))
+    if ( !network_tx_queue_is_empty() &&
+            ( state_get() == IDLE ) && !backoff_is_running() )
     {
         if (!hb_timer_is_running())
         {
@@ -523,7 +528,7 @@ bool network_rx_queue_push()
     }
 
     // fail if there is no element "under-construction"
-    if (rx_queue_push_byte_idx < 7)
+    if (rx_queue_push_byte_idx < 14)
     {
         network_rx_queue_reset();
         return 0;
@@ -876,12 +881,9 @@ void TIM4_IRQHandler()
 
             // set and start the backoff timer
             uint8_t random = SysTick->VAL & RANDOM_BACKOFF_MASK;
-            ERROR_HANDLE_NON_FATAL(
-                backoff_set_period(
-                    (random * RANDOM_BACKOFF_MAX_PERIOD_MS) /
-                    RANDOM_BACKOFF_DENOM_MAX
-                )
-            );
+            uint16_t backoff_period = (random * RANDOM_BACKOFF_MAX_PERIOD_MS) /
+                                      RANDOM_BACKOFF_DENOM_MAX;
+            ERROR_HANDLE_NON_FATAL(backoff_set_period(backoff_period));
             ERROR_HANDLE_NON_FATAL(backoff_reset());
             ERROR_HANDLE_NON_FATAL(backoff_start());
         }

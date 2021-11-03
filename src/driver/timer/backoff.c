@@ -13,11 +13,10 @@
 # include <stdbool.h>
 # include <stm32f446xx.h>
 
-
-# include "state.h"
+# include "error.h"
 # include "backoff.h"
-# include "uio.h"
 # include "network.h"
+# include "uio.h"
 
 
 /* --------------------------------- Defines -------------------------------- */
@@ -47,12 +46,6 @@
 
 
 /**
- * Flag indicating whether a backoff transmission is ready to transmit again
- */
-bool backoff_ready = false;
-
-
-/**
  * Backoff timer initialization flag
  */
 static bool backoff_timer_is_init = false;
@@ -70,11 +63,9 @@ static bool backoff_timer_is_running = false;
 /**
  * Initializes the backoff timer
  *
- * @param   ms  The backoff period in milliseconds
- *
  * @return  Error code
  */
-ERROR_CODE backoff_init( uint16_t ms )
+ERROR_CODE backoff_init()
 {
     // throw an error if the backoff timer is already initialized
     if ( backoff_timer_is_init )
@@ -94,7 +85,7 @@ ERROR_CODE backoff_init( uint16_t ms )
     TIM5->PSC = BACKOFF_TIMER_TICKS_PER_MS_TENTH;
 
     // set backoff
-    ELEVATE_IF_ERROR( backoff_set_period( ms ) );
+    ELEVATE_IF_ERROR( backoff_set_period( 100 ) );
 
     // reset timer
     ELEVATE_IF_ERROR( backoff_reset() );
@@ -184,12 +175,6 @@ ERROR_CODE backoff_reset()
  */
 bool backoff_is_running()
 {
-    // throw an error if the backoff timer is not initialized
-    if ( !backoff_timer_is_init )
-    {
-        THROW_ERROR( ERROR_CODE_DRIVER_TIMER_BACKOFF_NOT_INITIALIZED );
-    }
-
     return backoff_timer_is_running;
 }
 
@@ -228,7 +213,7 @@ void TIM5_IRQHandler()
     {
         backoff_stop();
         TIM5->SR &= ~(TIM_SR_UIF);
-        backoff_ready = true;
+        ERROR_HANDLE_NON_FATAL(network_start_tx());
     }
 }
 
