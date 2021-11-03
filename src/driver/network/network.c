@@ -13,7 +13,6 @@
 
 #define HALF_BIT_PERIOD_US              (500)
 
-#define LOCAL_MACHINE_ADDRESS           (0x23) //TODO changeme if needed
 #define HEADER_PREAMBLE                 (0x55)
 #define PROTOCOL_VERSION                (0x01)
 
@@ -150,7 +149,7 @@ static void printBytesHex(char * name, uint8_t * bytes, size_t size)
  *
  * @return  Error code
  */
-ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
+ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size, uint8_t localMachineAddress)
 {
     // throw an error if the network is not initialized
     if (!network_is_init)
@@ -162,7 +161,7 @@ ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
         .header = {
             .preamble = HEADER_PREAMBLE,
             .version = PROTOCOL_VERSION,
-            .source = LOCAL_MACHINE_ADDRESS,
+            .source = localMachineAddress,
             .destination = dest,
             .length = 0x0,
             .crc_flag = CRC_FLAG_ON
@@ -222,7 +221,7 @@ ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
  *
  * @return  bool if a valid message was placed in messageBuf
  */
-bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr)
+bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr, uint8_t * destAddr)
 {
     while (!network_rx_queue_is_empty())
     {
@@ -277,6 +276,10 @@ bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr)
                         if (sourceAddr != NULL)
                         {
                             *sourceAddr = frame.header.source;
+                        }
+                        if (destAddr != NULL)
+                        {
+                            *destAddr = frame.header.destination;
                         }
                         return true;
                     }

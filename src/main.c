@@ -80,7 +80,11 @@ int main( void )
     char networkRxBuffer[CE4981_NETWORK_MAX_MESSAGE_SIZE];
 
     uint8_t receiveAddr;
+    uint8_t destinationAddr;
     unsigned int rxBufferSize;
+
+    // Local Machine Address
+    uint8_t localMachineAddress = 0xFF;
 
     // TODO: These line is a temporary fix. The first transmission after reset
     //       causes a collision. By transmitting one byte at startup, we collide
@@ -92,12 +96,15 @@ int main( void )
     while(1)
     {
         //try a network read to check buffer.
-        if(network_rx((uint8_t *) networkRxBuffer, &receiveAddr))
+        if(network_rx((uint8_t *) networkRxBuffer, &receiveAddr, &destinationAddr))
         {
+            if(localMachineAddress == destinationAddr)
+            {
+                //print message
+                uprintf("[ From 0x%02X: %s ]\n", receiveAddr, networkRxBuffer);
+                uartRxReprint();
+            }
 
-            //print message
-            uprintf("[ From 0x%02X: %s ]\n", receiveAddr, networkRxBuffer);
-            uartRxReprint();
 
         }
         //if uart has full string get it and place it in transmit buffer.
@@ -132,7 +139,7 @@ int main( void )
             unsigned int messageSize = rxBufferSize - 5;
 
             uprintf("[ To 0x%02X: %s ]\n", addressHEX, message);
-            ERROR_HANDLE_FATAL(network_tx(addressHEX, (uint8_t *) message, messageSize));
+            ERROR_HANDLE_FATAL(network_tx(addressHEX, (uint8_t *) message, messageSize, localMachineAddress));
         }
     }
 }
