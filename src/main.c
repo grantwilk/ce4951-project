@@ -148,11 +148,11 @@ int main( void )
                 unsigned int messageSize = rxBufferSize - 5;
 
                 //check for preset transmissions
-                if(!strcmp(message,"/zeros")) {
+                if(!strcmp(message,".zeros")) {
                     memset(message, 0x00, 8);
                     messageSize = 8;
                 }
-                else if (!strcmp(message, "/ones")) {
+                else if (!strcmp(message, ".ones")) {
                     memset(message, 0xFF, 8);
                     messageSize = 8;
                 }
@@ -166,8 +166,6 @@ int main( void )
 
                 ERROR_HANDLE_FATAL(network_tx(destinationAddress, (uint8_t *) message, messageSize));
             }
-
-
         }
     }
 }

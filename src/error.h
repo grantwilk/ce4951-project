@@ -67,6 +67,7 @@ typedef enum
     ERROR_CODE_DRIVER_TIMER_BACKOFF_NOT_RUNNING,                // 0x1F
     ERROR_CODE_DRIVER_TIMER_BACKOFF_ALREADY_RUNNING,            // 0x20
 
+    ERROR_CODE_INVALID_UART_INPUT,                              // 0x21
 } ERROR_CODE;
 
 
