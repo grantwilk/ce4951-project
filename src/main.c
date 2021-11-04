@@ -131,8 +131,8 @@ int main( void )
                 set_local_machine_address((uint8_t)strtol(newAddress, NULL, 16));
                 uprintf("[ Local Address set to 0x%02X ]\n", get_local_machine_address());
             }
-            else if(uartRxBuffer[0] != '0' || uartRxBuffer[1] != 'x' && uartRxBuffer[1] != 'X' ||
-                isxdigit(uartRxBuffer[2]) || isxdigit(uartRxBuffer[3]) || uartRxBuffer[4] != ' ')
+            else if(uartRxBuffer[0] != '0' || (uartRxBuffer[1] != 'x' && uartRxBuffer[1] != 'X') ||
+                !isxdigit(uartRxBuffer[2]) || !isxdigit(uartRxBuffer[3]) || uartRxBuffer[4] != ' ')
             {
                 ERROR_HANDLE_NON_FATAL(ERROR_CODE_INVALID_UART_INPUT);
             }
