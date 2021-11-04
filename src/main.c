@@ -13,6 +13,7 @@
 # include <stdio.h>
 # include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 # include "main.h"
 # include "sysclock.h"
 # include "uio.h"
@@ -23,6 +24,7 @@
 # include "channel_monitor.h"
 # include "timeout.h"
 # include "state.h"
+# include "error.h"
 
 
 
@@ -128,6 +130,11 @@ int main( void )
                 char newAddress[2] = {uartRxBuffer[11], uartRxBuffer[12]};
                 set_local_machine_address((uint8_t)strtol(newAddress, NULL, 16));
                 uprintf("[ Local Address set to 0x%02X ]\n", get_local_machine_address());
+            }
+            else if(uartRxBuffer[0] != '0' || uartRxBuffer[1] != 'x' && uartRxBuffer[1] != 'X' ||
+                isxdigit(uartRxBuffer[2]) || isxdigit(uartRxBuffer[3]) || uartRxBuffer[4] != ' ')
+            {
+                ERROR_HANDLE_NON_FATAL(ERROR_CODE_INVALID_UART_INPUT);
             }
             else
             {

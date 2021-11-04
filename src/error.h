@@ -59,7 +59,9 @@ typedef enum
     ERROR_CODE_INVALID_MESSAGE_VERSION_RECEIVED,                // 0x19
     ERROR_CODE_CRC_OFF_TRAILER_INVALID,                         // 0x1a
     ERROR_CODE_CRC_ON_CRC_CHECK_FAIL,                           // 0x1b
-    ERROR_CODE_INVALID_CRC_FLAG                                 // 0x1c
+    ERROR_CODE_INVALID_CRC_FLAG,                                // 0x1c
+
+    ERROR_CODE_INVALID_UART_INPUT                               // 0x1d
 
 } ERROR_CODE;
 
