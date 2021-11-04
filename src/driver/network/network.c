@@ -3,9 +3,10 @@
 #include <memory.h>
 #include "stm32f446xx.h"
 
+#include "hb_timer.h"
+#include "backoff.h"
 #include "network.h"
 #include "state.h"
-#include "hb_timer.h"
 
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -29,8 +30,13 @@
 #define CRC_FLAG_OFF 0x00
 #define CRC_OFF_TRAILER_VALUE 0xAA
 
+#define RANDOM_BACKOFF_MASK             (0xFF)
+#define RANDOM_BACKOFF_DENOM_MAX        (255)
+#define RANDOM_BACKOFF_MAX_PERIOD_MS    (1000)
+
 // #define NETWORK_TX_DBG
 // #define MANCHESTER_DBG
+
 
 /**
  * Initialization flag
@@ -115,6 +121,9 @@ ERROR_CODE network_init()
     // push the first bit (preamble bit) onto the rx queue since this is
     // normally handled by _push() but that neither have been called yet
     network_rx_queue_push_bit(1);
+
+    // initialize random backoff timer
+    backoff_init();
 
     network_is_init = true;
 
@@ -237,7 +246,7 @@ bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr)
             if ((frame.header.preamble != HEADER_PREAMBLE))
             {
                 ERROR_HANDLE_NON_FATAL(ERROR_CODE_INCORRECT_PREAMBLE_RECEIVED);
-            } 
+            }
             else if ((sizeof(frame_header_t) + (frame.header.length) + sizeof(frame_trailer_t) != element->size / 2))
             {
                 ERROR_HANDLE_NON_FATAL(ERROR_CODE_INCORRECT_MESSAGE_LENGTH);
@@ -258,7 +267,7 @@ bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr)
                         {
                             error = ERROR_CODE_CRC_ON_CRC_CHECK_FAIL;
                         }
-                    } 
+                    }
                     else if (frame.header.crc_flag == CRC_FLAG_OFF)
                     {
                         if (frame.trailer.crc8_fcs != CRC_OFF_TRAILER_VALUE)
@@ -304,10 +313,14 @@ ERROR_CODE network_start_tx()
         THROW_ERROR(ERROR_CODE_NETWORK_NOT_INITIALIZED);
     }
 
-    if ( !network_tx_queue_is_empty() && ( state_get() == IDLE ))
+    if ( !network_tx_queue_is_empty() &&
+            ( state_get() == IDLE ) && !backoff_is_running() )
     {
-
-        ELEVATE_IF_ERROR(hb_timer_reset_and_start());
+        if (!hb_timer_is_running())
+        {
+            ELEVATE_IF_ERROR(hb_timer_reset());
+        }
+        ELEVATE_IF_ERROR(hb_timer_start());
     }
 
     RETURN_NO_ERROR();
@@ -515,7 +528,7 @@ bool network_rx_queue_push()
     }
 
     // fail if there is no element "under-construction"
-    if (rx_queue_push_byte_idx < 7)
+    if (rx_queue_push_byte_idx < 14)
     {
         network_rx_queue_reset();
         return 0;
@@ -723,7 +736,7 @@ network_encode_manchester(uint8_t * manchester, uint8_t * buffer, size_t size)
 
 /**
  * Calculates crc_fs value for the frame and sets the trailer accordingly
- * 
+ *
  * @param   [in]   frame  The frame to apply CRC calculation to
  */
 static void frame_crc_apply(frame_t * frame)
@@ -734,7 +747,7 @@ static void frame_crc_apply(frame_t * frame)
 
 /**
  * Validates that the crc_fs value for the frame is correct for the received data in the frame
- * 
+ *
  * @param   [in]   frame  The frame to validate CRC on
  * @return bool if crc value is valid
  */
@@ -748,10 +761,10 @@ static bool frame_crc_isValid(frame_t * frame)
 
 /**
  * Calculates an 8-bit CRC value for a given buffer of bytes
- * 
+ *
  * @param   [in]    buffer      The input buffer to calcualte CRC from
  * @param   [in]    size        The size of the input buffer
- * @param   [in]    initialValue initial value for the remainder byte. 
+ * @param   [in]    initialValue initial value for the remainder byte.
  *           Can be used to save state between multiple calls, or use a non-zero initial value, as some protocols do
  * @return  the result of the CRC calculation on the buffer
  */
@@ -772,7 +785,7 @@ static uint8_t crc8_calculate(uint8_t * buffer, unsigned int size, uint8_t initi
 
             //shift, LSB of result will be 0, and will take the value of invert since LSB of CRC_POLYNOMIAL is always a 1
             result = result << 1;
-            
+
             if (invert)
             {
                 result ^= CRC_POLYNOMIAL;
@@ -804,7 +817,8 @@ void TIM4_IRQHandler()
 
         if(state != COLLISION)
         {
-            hb_timer_reset_and_start();
+            hb_timer_reset();
+            hb_timer_start();
 
             if( byteIdx == tx_queue[msg_idx].size)
             {
@@ -857,11 +871,21 @@ void TIM4_IRQHandler()
         {
             // Stop the timer we are in COLLISION State
             hb_timer_stop();
+
             // Reset Transmission of the data
             byteIdx = 0;
             bitIdx = 0;
+
             // Output a 1 to PC11
             GPIOC->ODR |= GPIO_ODR_OD11;
+
+            // set and start the backoff timer
+            uint8_t random = SysTick->VAL & RANDOM_BACKOFF_MASK;
+            uint16_t backoff_period = (random * RANDOM_BACKOFF_MAX_PERIOD_MS) /
+                                      RANDOM_BACKOFF_DENOM_MAX;
+            ERROR_HANDLE_NON_FATAL(backoff_set_period(backoff_period));
+            ERROR_HANDLE_NON_FATAL(backoff_reset());
+            ERROR_HANDLE_NON_FATAL(backoff_start());
         }
     }
 }

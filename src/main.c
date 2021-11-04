@@ -24,7 +24,6 @@
 # include "state.h"
 
 
-
 /* ------------------------------------------ Defines ------------------------------------------- */
 
 
@@ -98,7 +97,7 @@ int main( void )
             uartRxReprint();
         }
         //if uart has full string get it and place it in transmit buffer.
-        if(uartRxReady())
+        else if (uartRxReady())
         {
             //get user message to transmit
             fgets(uartRxBuffer, CE4981_NETWORK_MAX_MESSAGE_SIZE, stdin);
