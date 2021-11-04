@@ -57,11 +57,15 @@ typedef enum
     ERROR_CODE_INCORRECT_PREAMBLE_RECEIVED,                     // 0x17
     ERROR_CODE_INCORRECT_MESSAGE_LENGTH,                        // 0x18
     ERROR_CODE_INVALID_MESSAGE_VERSION_RECEIVED,                // 0x19
-    ERROR_CODE_CRC_OFF_TRAILER_INVALID,                         // 0x1a
-    ERROR_CODE_CRC_ON_CRC_CHECK_FAIL,                           // 0x1b
-    ERROR_CODE_INVALID_CRC_FLAG,                                // 0x1c
+  
+    ERROR_CODE_CRC_OFF_TRAILER_INVALID,                         // 0x1A
+    ERROR_CODE_CRC_ON_CRC_CHECK_FAIL,                           // 0x1B
+    ERROR_CODE_INVALID_CRC_FLAG,                                // 0x1C
 
-    ERROR_CODE_INVALID_UART_INPUT                               // 0x1d
+    ERROR_CODE_DRIVER_TIMER_BACKOFF_NOT_INITIALIZED,            // 0x1D
+    ERROR_CODE_DRIVER_TIMER_BACKOFF_ALREADY_INITIALIZED,        // 0x1E
+    ERROR_CODE_DRIVER_TIMER_BACKOFF_NOT_RUNNING,                // 0x1F
+    ERROR_CODE_DRIVER_TIMER_BACKOFF_ALREADY_RUNNING,            // 0x20
 
 } ERROR_CODE;
 
