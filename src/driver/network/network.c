@@ -14,7 +14,6 @@
 
 #define HALF_BIT_PERIOD_US              (500)
 
-#define LOCAL_MACHINE_ADDRESS           (0x23) //TODO changeme if needed
 #define HEADER_PREAMBLE                 (0x55)
 #define PROTOCOL_VERSION                (0x01)
 
@@ -85,6 +84,10 @@ static unsigned int rx_queue_pop_idx = 0;
 static unsigned int rx_queue_push_bit_idx = 0;
 static unsigned int rx_queue_push_byte_idx = 0;
 
+/**
+ * Local Machine Address
+ */
+static uint8_t local_machine_address = 0xFF;
 
 /**
  * Initializes the network component
@@ -130,6 +133,25 @@ ERROR_CODE network_init()
     RETURN_NO_ERROR();
 }
 
+/**
+ * Get the local machine address
+ * @return local_machine_address
+ */
+uint8_t get_local_machine_address()
+{
+    return local_machine_address;
+}
+
+/**
+ * Set the local machine address
+ * @param newAddress
+ */
+ERROR_CODE set_local_machine_address(uint8_t newAddress)
+{
+    local_machine_address = newAddress;
+    RETURN_NO_ERROR();
+}
+
 //handy function to print bytes for debugging
 static void printBytesHex(char * name, uint8_t * bytes, size_t size)
 {
@@ -171,7 +193,7 @@ ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
         .header = {
             .preamble = HEADER_PREAMBLE,
             .version = PROTOCOL_VERSION,
-            .source = LOCAL_MACHINE_ADDRESS,
+            .source = local_machine_address,
             .destination = dest,
             .length = 0x0,
             .crc_flag = CRC_FLAG_ON
@@ -231,7 +253,7 @@ ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
  *
  * @return  bool if a valid message was placed in messageBuf
  */
-bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr)
+bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr, uint8_t * destAddr)
 {
     while (!network_rx_queue_is_empty())
     {
@@ -286,6 +308,10 @@ bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr)
                         if (sourceAddr != NULL)
                         {
                             *sourceAddr = frame.header.source;
+                        }
+                        if (destAddr != NULL)
+                        {
+                            *destAddr = frame.header.destination;
                         }
                         return true;
                     }
