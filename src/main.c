@@ -85,9 +85,6 @@ int main( void )
     uint8_t destinationAddr;
     unsigned int rxBufferSize;
 
-    // Local Machine Address
-    uint8_t localMachineAddress = 0xFF;
-
     // TODO: These line is a temporary fix. The first transmission after reset
     //       causes a collision. By transmitting one byte at startup, we collide
     //       on reset, which is more OK. Ideally this doesn't happen though.
@@ -105,7 +102,7 @@ int main( void )
                 uprintf("[ Broadcast from 0x%02X: %s ]\n", receiveAddr, networkRxBuffer);
                 uartRxReprint();
             }
-            else if(destinationAddr == localMachineAddress)
+            else if(destinationAddr == get_local_machine_address())
             {
                 //print message
                 uprintf("[ From 0x%02X: %s ]\n", receiveAddr, networkRxBuffer);
@@ -129,8 +126,8 @@ int main( void )
             if(!strncmp(uartRxBuffer, "/setaddr", 8))
             {
                 char newAddress[2] = {uartRxBuffer[11], uartRxBuffer[12]};
-                localMachineAddress = (uint8_t)strtol(newAddress, NULL, 16);
-                uprintf("Local Address set to 0x%02X\n", localMachineAddress);
+                set_local_machine_address((uint8_t)strtol(newAddress, NULL, 16));
+                uprintf("[ Local Address set to 0x%02X ]\n", get_local_machine_address());
             }
             else
             {
@@ -161,7 +158,7 @@ int main( void )
                     uprintf("[ To 0x%02X: %s ]\n", destinationAddress, message);
                 }
 
-                ERROR_HANDLE_FATAL(network_tx(destinationAddress, (uint8_t *) message, messageSize, localMachineAddress));
+                ERROR_HANDLE_FATAL(network_tx(destinationAddress, (uint8_t *) message, messageSize));
             }
 
 

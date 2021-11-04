@@ -78,6 +78,10 @@ static unsigned int rx_queue_pop_idx = 0;
 static unsigned int rx_queue_push_bit_idx = 0;
 static unsigned int rx_queue_push_byte_idx = 0;
 
+/**
+ * Local Machine Address
+ */
+static uint8_t local_machine_address = 0xFF;
 
 /**
  * Initializes the network component
@@ -120,6 +124,25 @@ ERROR_CODE network_init()
     RETURN_NO_ERROR();
 }
 
+/**
+ * Get the local machine address
+ * @return local_machine_address
+ */
+uint8_t get_local_machine_address()
+{
+    return local_machine_address;
+}
+
+/**
+ * Set the local machine address
+ * @param newAddress
+ */
+ERROR_CODE set_local_machine_address(uint8_t newAddress)
+{
+    local_machine_address = newAddress;
+    RETURN_NO_ERROR();
+}
+
 //handy function to print bytes for debugging
 static void printBytesHex(char * name, uint8_t * bytes, size_t size)
 {
@@ -149,7 +172,7 @@ static void printBytesHex(char * name, uint8_t * bytes, size_t size)
  *
  * @return  Error code
  */
-ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size, uint8_t localMachineAddress)
+ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
 {
     // throw an error if the network is not initialized
     if (!network_is_init)
@@ -161,7 +184,7 @@ ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size, uint8_t local
         .header = {
             .preamble = HEADER_PREAMBLE,
             .version = PROTOCOL_VERSION,
-            .source = localMachineAddress,
+            .source = local_machine_address,
             .destination = dest,
             .length = 0x0,
             .crc_flag = CRC_FLAG_ON

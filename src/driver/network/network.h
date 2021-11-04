@@ -30,8 +30,11 @@ typedef struct
 } frame_t;
 
 
+uint8_t get_local_machine_address();
+ERROR_CODE set_local_machine_address(uint8_t newAddress);
+
 ERROR_CODE network_init();
-ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size, uint8_t localMachineAddress);
+ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size);
 bool network_rx(uint8_t * messageBuf, uint8_t * sourceAddr, uint8_t * destinationAddr);
 ERROR_CODE network_start_tx();
 
