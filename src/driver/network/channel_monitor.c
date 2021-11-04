@@ -19,8 +19,8 @@ ERROR_CODE channel_monitor_init()
 
     GPIOC->MODER &= ~GPIO_MODER_MODER12; //set PC12 as input
 
-    GPIOC->PUPDR &= ~GPIO_PUPDR_PUPD12;
-    GPIOC->PUPDR |= 0b01 << GPIO_PUPDR_PUPD12_Pos; //set pullup resistor
+    // GPIOC->PUPDR &= ~GPIO_PUPDR_PUPD12;
+    // GPIOC->PUPDR |= 0b01 << GPIO_PUPDR_PUPD12_Pos; //set pullup resistor
 
     SYSCFG->EXTICR[3] &= ~SYSCFG_EXTICR4_EXTI12;
     SYSCFG->EXTICR[3] |= SYSCFG_EXTICR4_EXTI12 & SYSCFG_EXTICR4_EXTI12_PC; //EXTI line 12 set to bank C
