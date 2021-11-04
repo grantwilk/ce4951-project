@@ -126,9 +126,9 @@ int main( void )
             //check if setting address
             if(!strncmp(uartRxBuffer, "/setaddr", 8))
             {
-                char newAddress[2] = {uartRxBuffer[11], uartRxBuffer[12]};
+                char newAddress[3] = {uartRxBuffer[11], uartRxBuffer[12], '\0'};
                 set_local_machine_address((uint8_t)strtol(newAddress, NULL, 16));
-                uprintf("[ Local Address set to 0x%02X ]\n", get_local_machine_address());
+                uprintf("[ Local address set to 0x%02X ]\n", get_local_machine_address());
             }
             else if(uartRxBuffer[0] != '0' || (uartRxBuffer[1] != 'x' && uartRxBuffer[1] != 'X') ||
                 !isxdigit(uartRxBuffer[2]) || !isxdigit(uartRxBuffer[3]) || uartRxBuffer[4] != ' ')

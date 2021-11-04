@@ -214,7 +214,7 @@ ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
         frame.message = (char *) buffer + queued_bytes;
         frame_crc_apply(&frame);
 
-        uprintf("CRC: 0x%02X\n", frame.trailer.crc8_fcs);
+        uprintf("[ CRC: 0x%02X ]\n", frame.trailer.crc8_fcs);
 
         // encode in manchester
         unsigned int manchester_size = network_encode_frame_manchester(manchester, &frame);
