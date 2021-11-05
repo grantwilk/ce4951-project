@@ -1,11 +1,5 @@
 # MSOE CE4951 Networking Project
 
-### Authors
-- Dan Kaehn
-- Grant Wilk
-- James Rector
-- Luke Schlavensky
-
 ### Software
 - [JetBrains CLion](https://www.jetbrains.com/clion/) (this software is available for free with a [student license](https://www.jetbrains.com/community/education/#students))
 - [STM32 Cube MX](https://www.st.com/en/development-tools/stm32cubemx.html)
@@ -34,3 +28,10 @@ This software implements a command line interface to sending ASCII messages to o
 On reset, the device should print "/* ---------- DEVICE RESET ---------- */" with two trailing line endings. 
 
 Typing any sequence of up to 255 characters(except for the special commands) and pressing the return key will send a message on the bus once the line is detected to be idle.
+
+### Authors
+- Dan Kaehn
+- Grant Wilk
+- James Rector
+- Luke Schlavensky
+
