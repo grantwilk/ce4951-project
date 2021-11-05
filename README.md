@@ -1,7 +1,7 @@
 # MSOE CE4951 Networking Project
 
 ### Description
-This software implements a network interface driver and application to interface with other devices on a shared bus compliant with the provided CE4951-STD-CSMACD-UNI-ME-002 standard.
+This STM32 firmware implements a network interface driver and application to interface with other devices on a shared bus compliant with the provided CE4951-STD-CSMACD-UNI-ME-002 standard.
 
 ### Connections
 For this software to correctly function, its transmit and receive pins must be bridged. This software uses PC11 as the transmit pin and PC12 as the receive pin. This shared bridge node between PC11 and PC12 is the node at which the bus attached to other devices can be connected.
