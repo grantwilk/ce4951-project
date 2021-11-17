@@ -246,7 +246,6 @@ ERROR_CODE network_tx(uint8_t dest, uint8_t * buffer, size_t size)
     RETURN_NO_ERROR();
 }
 
-
 /**
  * Receive a single message from the network queue, if there is one available
  *
